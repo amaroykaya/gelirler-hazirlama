@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.spec.bak
+.env
+.DS_Store
+
+# Yerel / gürültü
+assets/
+test_env/
+0.10.0
+1.20.0
+1.5.0
+2.28.0
+3.0.0
+5.0.0

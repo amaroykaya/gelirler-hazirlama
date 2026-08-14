@@ -1,0 +1,116 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-07-12T19:14:00+03:00",
+    "last_updated": "2026-07-12T19:30:00+03:00",
+    "completed": "2026-07-12T19:30:00+03:00"
+  },
+  "mode": "initial_scan",
+  "scan_level": "exhaustive",
+  "project_root": "c:\\Users\\Asus.DESKTOP-9F6EQVL\\Desktop\\tools\\gelir_hazırlama",
+  "project_knowledge": "docs",
+  "project_types": [
+    {
+      "part_id": "main",
+      "project_type_id": "desktop",
+      "display_name": "Desktop (Python Tk/PySide)"
+    }
+  ],
+  "completed_steps": [
+    {
+      "step": "step_1",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:20:00+03:00",
+      "summary": "Classified as monolith desktop with 1 part (Python ETL + dual UI)"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:21:00+03:00",
+      "summary": "Found 0 existing docs; user requested notebook for future recall"
+    },
+    {
+      "step": "step_3",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:22:00+03:00",
+      "summary": "Tech stack: Python/pandas/openpyxl/pdfplumber/Tkinter/PySide6/TCMB"
+    },
+    {
+      "step": "step_4",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:25:00+03:00",
+      "summary": "Conditional analysis: UI components + state; no API/DB; assets ignored"
+    },
+    {
+      "step": "step_5",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:26:00+03:00",
+      "summary": "Source tree documented"
+    },
+    {
+      "step": "step_6",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:27:00+03:00",
+      "summary": "Dev/deployment guides written"
+    },
+    {
+      "step": "step_8",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:28:00+03:00",
+      "summary": "Architecture docs written for 1 part"
+    },
+    {
+      "step": "step_9",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:29:00+03:00",
+      "summary": "Supporting docs + NOT_DEFTERI.md written"
+    },
+    {
+      "step": "step_10",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:29:30+03:00",
+      "summary": "Master index generated"
+    },
+    {
+      "step": "step_11",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:30:00+03:00",
+      "summary": "Validation complete; user-facing notebook prioritized"
+    },
+    {
+      "step": "step_12",
+      "status": "completed",
+      "timestamp": "2026-07-12T19:30:00+03:00",
+      "summary": "Workflow complete"
+    }
+  ],
+  "current_step": "completed",
+  "findings": {
+    "project_classification": "monolith desktop, 1 part, Python ETL",
+    "technology_stack": "pandas/openpyxl/Tkinter core; PySide suite adapter; TCMB urllib",
+    "batches_completed": [
+      {
+        "path": "gelirhazirlama.py",
+        "files_scanned": 1,
+        "summary": "Full pipeline + Tk UI ~1563 lines"
+      },
+      {
+        "path": "ui_pyside",
+        "files_scanned": 2,
+        "summary": "GelirPage + worker wrapping run_gelir_export"
+      }
+    ]
+  },
+  "outputs_generated": [
+    "project-scan-report.json",
+    "NOT_DEFTERI.md",
+    "index.md",
+    "project-overview.md",
+    "source-tree-analysis.md",
+    "architecture.md",
+    "component-inventory.md",
+    "development-guide.md",
+    "deployment-guide.md"
+  ],
+  "resume_instructions": "Workflow completed; re-run as full_rescan if code changes significantly."
+}

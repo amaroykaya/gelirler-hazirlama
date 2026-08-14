@@ -94,7 +94,7 @@ echo Paketler kuruluyor...
 echo ========================================
 echo.
 
-echo [1/6] pandas kuruluyor...
+echo [1/5] pandas kuruluyor...
 %PYTHON_CMD% -m pip install pandas>=1.5.0
 if %ERRORLEVEL% neq 0 (
     echo HATA: pandas kurulamadi!
@@ -102,7 +102,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [2/6] openpyxl kuruluyor...
+echo [2/5] openpyxl kuruluyor...
 %PYTHON_CMD% -m pip install openpyxl>=3.0.0
 if %ERRORLEVEL% neq 0 (
     echo HATA: openpyxl kurulamadi!
@@ -110,7 +110,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [3/6] numpy kuruluyor...
+echo [3/5] numpy kuruluyor...
 %PYTHON_CMD% -m pip install numpy>=1.20.0
 if %ERRORLEVEL% neq 0 (
     echo HATA: numpy kurulamadi!
@@ -118,15 +118,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [4/6] requests kuruluyor...
-%PYTHON_CMD% -m pip install requests>=2.28.0
-if %ERRORLEVEL% neq 0 (
-    echo HATA: requests kurulamadi!
-    pause
-    exit /b 1
-)
-
-echo [5/6] pdfplumber kuruluyor...
+echo [4/5] pdfplumber kuruluyor...
 %PYTHON_CMD% -m pip install pdfplumber>=0.10.0
 if %ERRORLEVEL% neq 0 (
     echo HATA: pdfplumber kurulamadi!
@@ -134,7 +126,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [6/6] pyinstaller kuruluyor...
+echo [5/5] pyinstaller kuruluyor...
 %PYTHON_CMD% -m pip install pyinstaller>=5.0.0
 if %ERRORLEVEL% neq 0 (
     echo HATA: pyinstaller kurulamadi!
@@ -154,7 +146,7 @@ echo EXE dosyasi olusturuluyor...
 echo ========================================
 echo.
 
-%PYTHON_CMD% -m PyInstaller --onefile --windowed --name=GelirHazirlama --hidden-import=requests --hidden-import=pdfplumber gelirhazirlama.py
+%PYTHON_CMD% -m PyInstaller --onefile --windowed --name=GelirHazirlama --hidden-import=pdfplumber gelirhazirlama.py
 
 if %ERRORLEVEL% neq 0 (
     echo.

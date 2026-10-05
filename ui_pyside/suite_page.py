@@ -33,6 +33,9 @@ from PySide6.QtWidgets import (
 
 from gelirhazirlama import AY_ADI_SIRALI, _default_ay_yil, run_gelir_export
 
+from app_info import __version__
+from ui.branding import make_pyside_logo_label
+
 _AYLAR = AY_ADI_SIRALI
 
 _AY_MAP_UI = {i + 1: name for i, name in enumerate(AY_ADI_SIRALI)}
@@ -101,6 +104,22 @@ class GelirPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(10)
+
+        header = QHBoxLayout()
+        title_block = QVBoxLayout()
+        title = QLabel("Gelir Hazırlama")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a;")
+        version = QLabel(f"Sürüm {__version__}")
+        version.setStyleSheet("font-size: 11px; color: #64748b;")
+        title_block.addWidget(title)
+        title_block.addWidget(version)
+        header.addLayout(title_block)
+        header.addStretch(1)
+        logo = make_pyside_logo_label(header=True, max_width=160)
+        if logo is not None:
+            logo.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            header.addWidget(logo)
+        root.addLayout(header)
 
         paths = QGroupBox("Girdi / çıktı")
         form = QFormLayout(paths)

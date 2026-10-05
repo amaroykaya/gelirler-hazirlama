@@ -5,7 +5,7 @@ a = Analysis(
     ['gelirhazirlama.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('assets/branding', 'assets/branding')],
     hiddenimports=['pdfplumber'],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='assets/branding/antsis_logo.ico',
 )

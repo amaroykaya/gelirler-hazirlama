@@ -116,7 +116,18 @@ Dip satırda `TOPLAM` + ilgili kolonlarda `=SUM(...)` formülleri. **Özel Açı
 - Gruptaki ürün satırları `\n` ile birleşir.
 - Miktar varsa: `"ürün N ADET"`.
 - Birebir `INSURANCE COST` ve `FREIGHT COST` atılır.
-- `Firma == "AWSOLS"` ise PDF’deki `Not: Fatura Açıklaması` satırları `- ` önekli eklenir.
+- `Firma == "AWSOLS"` ise PDF’deki `Not: Fatura Açıklaması` metni (tüm sayfalar; bir sonraki `Not:`’a kadar) `- ` önekli eklenir.
+
+### STB eksik uyarısı
+- En son adımda (tüm kurallar bittikten sonra) iade olmayan ve Teknopark No'su `-` kalan faturalar bulunur.
+- Bitiş ekranındaki özette listelenir (sebep: "PDF seçilmemiş" / "PDF var, içinde STB kodu bulunamadı"); Excel'de Teknopark No hücresi sarı.
+- Hiç PDF seçilmediyse tek satır: "PDF seçilmedi, STB kontrolü yapılmadı."
+- İade tespiti burada hem `İADE` hem `IADE` yazımını kabul eder.
+
+### Sipariş No / Sorumlu (U / V)
+- Sipariş No: `SA Emir No` (öncelikli) → `Sipariş No` / `Sipariş Numarası`; değerde rakam şart.
+- Sorumlu: `Satınalma/Satın Alma Sorumlusu`, `Sipariş Sorumlusu`, `Satın Alma Departmanı`.
+- Bunlar yoksa ve Firma `SORUMLU_ILGILI_FIRMALAR` içindeyse (şu an TUSAŞ) satır başındaki `İLGİLİ :` alınır; `ŞEF` / `MÜDÜR` alınmaz.
 
 ### Teknopark No / PDF eşleme
 - Varsayılan: `"-"`.
@@ -169,7 +180,22 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 
 ---
 
-## 10. Daha ayrıntılı dokümanlar
+## 10. Sürüm geçmişi
+
+Sürüm numarası `app_info.py` → `__version__`; pencere başlığında ve "Sürüm" etiketinde görünür.  
+Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son sayı (1.1.**1**).
+
+### 1.1.0 — 2026-10-05
+- **Düzeltme:** AWSOLS `Not: Fatura Açıklaması` metni artık diğer sayfaya taşsa da alınır (bir sonraki `Not:`’a kadar, tüm sayfalar).
+- **Düzeltme:** Sipariş No’da `Sipari` hatası giderildi (boş üst `Sipariş No:` + `Sipariş Tarihi`); `SA Emir No` öncelikli, değerde rakam şart.
+- **Yeni:** `Sipariş Numarası` ve `Satın Alma Departmanı` etiketleri (ör. ARMSTRO).
+- **Yeni:** Firma TUSAŞ ise sorumlu yoksa `İLGİLİ :` satırı kullanılır.
+- **Yeni:** STB eksik uyarısı — iade olmayan + Teknopark No’su boş faturalar bitiş ekranında listelenir, Excel’de sarı.
+- Antsis logo / ikon ve sürüm bilgisi (`app_info.py`, `ui/branding.py`, EXE ikonu).
+
+---
+
+## 11. Daha ayrıntılı dokümanlar
 
 | Dosya | İçerik |
 |-------|--------|

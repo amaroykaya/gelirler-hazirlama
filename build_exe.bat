@@ -146,7 +146,7 @@ echo EXE dosyasi olusturuluyor...
 echo ========================================
 echo.
 
-%PYTHON_CMD% -m PyInstaller --onefile --windowed --name=GelirHazirlama --hidden-import=pdfplumber gelirhazirlama.py
+%PYTHON_CMD% -m PyInstaller --onefile --windowed --name=GelirHazirlama --hidden-import=pdfplumber --add-data "assets/branding;assets/branding" --icon=assets/branding/antsis_logo.ico gelirhazirlama.py
 
 if %ERRORLEVEL% neq 0 (
     echo.

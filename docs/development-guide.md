@@ -42,7 +42,7 @@ python gelirhazirlama.py
 .\build_exe.bat
 ```
 
-Betik: bağımlılıkları pip ile kurar → PyInstaller `--onefile --windowed --name=GelirHazirlama` → `dist\GelirHazirlama.exe`.
+Betik: bağımlılıkları pip ile kurar → sürümü `app_info.py`’den okur → PyInstaller `--onefile --windowed --name=GelirHazirlama-<sürüm>` → `dist\GelirHazirlama-<sürüm>.exe`.
 
 Alternatif: `pyinstaller GelirHazirlama.spec`
 

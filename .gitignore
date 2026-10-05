@@ -4,6 +4,8 @@ __pycache__/
 dist/
 build/
 *.spec.bak
+# build_exe.bat her sürüm için otomatik üretir
+GelirHazirlama-*.spec
 .env
 .DS_Store
 

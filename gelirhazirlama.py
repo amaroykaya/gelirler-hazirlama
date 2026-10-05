@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
@@ -901,6 +902,7 @@ def isle_fatura_dosyasi(
     yil: str = None,
     pdf_paths: list = None,
     rename_pdfs: bool = True,
+    stats: Optional[dict] = None,
 ) -> Tuple[pd.DataFrame, List[str]]:
     """
     girdi_yolu   : satis-faturalari_ekim.xlsx gibi RAW dosya
@@ -909,6 +911,9 @@ def isle_fatura_dosyasi(
     yil          : çıktı dosya isminde kullanılacak yıl (None → güncel yıl)
     pdf_paths    : PDF dosyası yolları listesi (STB proje kodu için, opsiyonel)
     rename_pdfs  : True ise eşleşen PDF'leri kaynak klasörde yeniden adlandırır
+    stats        : verilirse arayüz için yapısal sayılarla doldurulur
+                   (fatura_satiri, pdf_secilen, stb_eslesen, stb_kontrol_yapildi,
+                   stb_eksik [(fatura_no, firma, sebep)], kur_bos, kur_mb_bos)
     Dönüş        : (final DataFrame, işlem özeti satırları)
     """
     if yil is None:
@@ -1267,6 +1272,13 @@ def isle_fatura_dosyasi(
         else:
             kdv_siz_dolar.append(round(tot_d - kdv_d, 2))
     out["KDV siz Dolar"] = kdv_siz_dolar
+
+    # Tam sayı okunan tutar sütunlarına (int64) sonradan kur bölümü yazılabilsin (pandas 3 reddeder)
+    for _col in ("Toplam TL", "KDV TL", "KDV siz TL", "KDV Dolar", "Toplam Dolar", "KDV siz Dolar"):
+        try:
+            out[_col] = out[_col].astype(float)
+        except (TypeError, ValueError):
+            pass
     
     # EURO sütununu sayısal başlat; pandas string dtype uyuşmazlık hatalarını önler
     out["EURO"] = 0.0
@@ -1627,12 +1639,12 @@ def isle_fatura_dosyasi(
 
     # --- STB kontrolü: tüm kurallar uygulandıktan sonra, Excel'e yazılacak son veri üzerinde ---
     final_tot[STB_EKSIK_COL] = False
+    stb_eksik = []
     if not pdf_paths:
         summary.append("")
         summary.append("UYARI: PDF seçilmedi, STB kontrolü yapılmadı.")
     else:
         pdf_fatura_set = {str(v).strip().upper() for v in pdf_path_fatura_map.values()}
-        stb_eksik = []
         for idx in final_tot.index:
             if "iade" in _normalize_col_name(final_tot.at[idx, "Durum"]):
                 continue
@@ -1649,7 +1661,7 @@ def isle_fatura_dosyasi(
                 if fno.upper() in pdf_fatura_set
                 else "PDF seçilmemiş"
             )
-            stb_eksik.append(f"- {fno or '(fatura no yok)'} {firma} — {sebep}")
+            stb_eksik.append((fno or "(fatura no yok)", firma, sebep))
         if stb_eksik:
             summary.append("")
             summary.append(
@@ -1657,9 +1669,22 @@ def isle_fatura_dosyasi(
                 f"(Excel'de Teknopark No sarı)"
             )
             limit = 30
-            summary.extend(stb_eksik[:limit])
+            summary.extend(f"- {f} {fi} — {s}" for f, fi, s in stb_eksik[:limit])
             if len(stb_eksik) > limit:
                 summary.append(f"... ve {len(stb_eksik) - limit} fatura daha")
+
+    if stats is not None:
+        stats.update(
+            {
+                "fatura_satiri": len(final_tot),
+                "pdf_secilen": len(pdf_paths) if pdf_paths else 0,
+                "stb_eslesen": len(pdf_fatura_stb_map),
+                "stb_kontrol_yapildi": bool(pdf_paths),
+                "stb_eksik": list(stb_eksik),
+                "kur_bos": int(final_tot["Kur"].isna().sum()) if "Kur" in final_tot.columns else 0,
+                "kur_mb_bos": int(final_tot["Kur MB"].isna().sum()) if "Kur MB" in final_tot.columns else 0,
+            }
+        )
 
     return final_tot, summary
 
@@ -1923,10 +1948,12 @@ def run_gelir_export(
     output_folder: str,
     pdf_paths: Optional[List[str]] = None,
     rename_pdfs: bool = True,
+    stats: Optional[dict] = None,
 ) -> Tuple[str, Optional[str], str]:
     """
     `isle_fatura_dosyasi` + Excel kayıt ve openpyxl son işlemleri (Tk / PySide ortak).
     Dönüş: (kaydedilen yol, zaman damgalı yedek uyarısı veya None, işlem özeti metni).
+    `stats` verilirse sonuç paneli için yapısal sayılarla doldurulur.
     """
     ay_dosya = AY_ADI_DOSYA_MAP.get(ay_adi_excel, "eylul")
     final_tot, summary_lines = isle_fatura_dosyasi(
@@ -1936,6 +1963,7 @@ def run_gelir_export(
         yil,
         pdf_paths if pdf_paths else None,
         rename_pdfs=rename_pdfs,
+        stats=stats,
     )
     summary = "\n".join(summary_lines) if summary_lines else ""
     out = Path(output_folder) / f"gelir_kalemleri_{ay_dosya}_{yil}_çalışma.xlsx"
@@ -2147,8 +2175,21 @@ class GelirHazirlamaApp:
             self.status_label.config(text="Hata oluştu!", foreground="red")
             messagebox.showerror("Hata", f"İşlem sırasında hata oluştu:\n{str(e)}")
 
-if __name__ == "__main__":
+def _run_tk() -> None:
     root = tk.Tk()
-    app = GelirHazirlamaApp(root)
+    GelirHazirlamaApp(root)
     root.mainloop()
+
+
+if __name__ == "__main__":
+    if "--tk" in sys.argv:
+        _run_tk()
+    else:
+        try:
+            from ui_pyside.main_window import run_app
+        except ImportError as exc:
+            print(f"PySide6 arayüzü açılamadı ({exc}); klasik arayüz kullanılıyor.")
+            _run_tk()
+        else:
+            sys.exit(run_app())
 

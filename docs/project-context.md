@@ -90,7 +90,7 @@ Ağ: `https://www.tcmb.gov.tr/kurlar/{YYYYMM}/{ddMMyyyy}.xml` → USD `ForexBuyi
 ### Development Workflow Rules
 
 - Çalıştırma: `.venv` + `run_app.bat` / `python gelirhazirlama.py`.
-- EXE: `build_exe.bat` → `dist\GelirHazirlama.exe`.
+- EXE: `build_exe.bat` → `dist\GelirHazirlama-<sürüm>.exe` (sürüm `app_info.__version__`).
 - Commit yalnızca kullanıcı isterse; secret / `.venv` / `dist` / `assets` commit etme.
 - Bağımlılık eklerken `requirements.txt` ve gerekirse `build_exe.bat` pip listesini / hidden-import’u güncelle. PySide suite için requirements’a eklemeden önce kullanıcıya sor (EXE kapsamı değişir).
 - İnsan bağlamı: `docs/NOT_DEFTERI.md`; AI mimari: `docs/architecture.md`. İş kuralı değişince her ikisini de güncelle.

@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 echo ========================================
 echo Gelir Hazirlama EXE Olusturma
 echo ========================================
@@ -94,40 +95,48 @@ echo Paketler kuruluyor...
 echo ========================================
 echo.
 
-echo [1/5] pandas kuruluyor...
-%PYTHON_CMD% -m pip install pandas>=1.5.0
+echo [1/6] pandas kuruluyor...
+%PYTHON_CMD% -m pip install "pandas>=1.5.0"
 if %ERRORLEVEL% neq 0 (
     echo HATA: pandas kurulamadi!
     pause
     exit /b 1
 )
 
-echo [2/5] openpyxl kuruluyor...
-%PYTHON_CMD% -m pip install openpyxl>=3.0.0
+echo [2/6] openpyxl kuruluyor...
+%PYTHON_CMD% -m pip install "openpyxl>=3.0.0"
 if %ERRORLEVEL% neq 0 (
     echo HATA: openpyxl kurulamadi!
     pause
     exit /b 1
 )
 
-echo [3/5] numpy kuruluyor...
-%PYTHON_CMD% -m pip install numpy>=1.20.0
+echo [3/6] numpy kuruluyor...
+%PYTHON_CMD% -m pip install "numpy>=1.20.0"
 if %ERRORLEVEL% neq 0 (
     echo HATA: numpy kurulamadi!
     pause
     exit /b 1
 )
 
-echo [4/5] pdfplumber kuruluyor...
-%PYTHON_CMD% -m pip install pdfplumber>=0.10.0
+echo [4/6] pdfplumber kuruluyor...
+%PYTHON_CMD% -m pip install "pdfplumber>=0.10.0"
 if %ERRORLEVEL% neq 0 (
     echo HATA: pdfplumber kurulamadi!
     pause
     exit /b 1
 )
 
-echo [5/5] pyinstaller kuruluyor...
-%PYTHON_CMD% -m pip install pyinstaller>=5.0.0
+echo [5/6] PySide6 kuruluyor...
+%PYTHON_CMD% -m pip install "PySide6>=6.5.0"
+if %ERRORLEVEL% neq 0 (
+    echo HATA: PySide6 kurulamadi!
+    pause
+    exit /b 1
+)
+
+echo [6/6] pyinstaller kuruluyor...
+%PYTHON_CMD% -m pip install "pyinstaller>=5.0.0"
 if %ERRORLEVEL% neq 0 (
     echo HATA: pyinstaller kurulamadi!
     pause
@@ -140,13 +149,23 @@ echo Tum paketler basariyla kuruldu!
 echo ========================================
 echo.
 
+REM Surum app_info.py icinden okunur; cikti: dist\GelirHazirlama-<surum>.exe
+set APP_VER=
+for /f "usebackq delims=" %%V in (`%PYTHON_CMD% -c "import app_info; print(app_info.__version__)"`) do set APP_VER=%%V
+if not defined APP_VER (
+    echo HATA: Surum app_info.py'den okunamadi!
+    pause
+    exit /b 1
+)
+set EXE_NAME=GelirHazirlama-%APP_VER%
+
 REM PyInstaller ile EXE olustur
 echo ========================================
-echo EXE dosyasi olusturuluyor...
+echo EXE dosyasi olusturuluyor... (%EXE_NAME%)
 echo ========================================
 echo.
 
-%PYTHON_CMD% -m PyInstaller --onefile --windowed --name=GelirHazirlama --hidden-import=pdfplumber --add-data "assets/branding;assets/branding" --icon=assets/branding/antsis_logo.ico gelirhazirlama.py
+%PYTHON_CMD% -m PyInstaller --noconfirm --onefile --windowed --name=%EXE_NAME% --hidden-import=pdfplumber --hidden-import=ui_pyside.main_window --add-data "assets/branding;assets/branding" --icon=assets/branding/antsis_logo.ico gelirhazirlama.py
 
 if %ERRORLEVEL% neq 0 (
     echo.
@@ -160,7 +179,7 @@ echo ========================================
 echo Basarili! EXE dosyasi dist klasorunde.
 echo ========================================
 echo.
-echo EXE dosyasi: dist\GelirHazirlama.exe
+echo EXE dosyasi: dist\%EXE_NAME%.exe
 echo.
 pause
 

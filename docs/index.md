@@ -67,7 +67,7 @@ python gelirhazirlama.py
 
 ```bash
 build_exe.bat
-# çıktı: dist\GelirHazirlama.exe
+# çıktı: dist\GelirHazirlama-<sürüm>.exe
 ```
 
 ## For AI-Assisted Development

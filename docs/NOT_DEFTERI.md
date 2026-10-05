@@ -20,13 +20,16 @@ gelir_kalemleri_{ay}_{yil}_çalışma.xlsx
 
 | Yol | Komut / dosya | Arayüz |
 |-----|---------------|--------|
-| Geliştirme | `run_app.bat` veya `python gelirhazirlama.py` | **Tkinter** |
-| EXE | `dist\GelirHazirlama.exe` (`build_exe.bat`) | **Tkinter** |
-| Birleşik suite | Harici kabuk `ui_pyside.suite_page.GelirPage` import eder | **PySide6** |
+| Geliştirme | `run_app.bat` veya `python gelirhazirlama.py` | **PySide6** (yoksa Tk’ye düşer) |
+| EXE | `dist\GelirHazirlama-<sürüm>.exe` (`build_exe.bat`, sürüm `app_info.py`’den) | **PySide6** |
+| Klasik arayüz | `python gelirhazirlama.py --tk` | **Tkinter** (yedek) |
+| Birleşik suite | Harici kabuk `ui_pyside.suite_page.GelirPage` import eder | **PySide6** (aynı sayfa) |
 
-Her iki UI aynı motoru kullanır: `run_gelir_export` → `isle_fatura_dosyasi`.
+Tüm arayüzler aynı motoru kullanır: `run_gelir_export` → `isle_fatura_dosyasi`.
 
-**Önkoşul:** `.venv` kurulmuş olmalı; PDF için `pdfplumber`; işlem sırasında **internet** (TCMB kur).
+**Önkoşul:** `.venv` kurulmuş olmalı (`requirements.txt`, PySide6 dahil); PDF için `pdfplumber`; işlem sırasında **internet** (TCMB kur).
+
+**Arayüz (PySide6):** iki kart (1 Girdi dosyaları, 2 Dönem ve çıktı) + "Excel'i Oluştur". Buton zorunlu alanlar (Excel, çıktı klasörü, 4 haneli yıl) dolunca aktif olur. İşlem arka planda; ilerleme çubuğu + durum satırı (TCMB istek sayısı). Bitişte **Sonuç** kartı: fatura satırı / STB eksik / kur boş / PDF sayısı kutucukları, STB eksik listesi, "Excel'i Aç", "Klasörü Aç", açılır işlem günlüğü. Excel otomatik açılmaz. Son kullanılan klasörler `QSettings("Antsis", "GelirHazirlama")` ile hatırlanır (yalnızca dosya penceresinin başlangıç klasörü; çıktı klasörü her seferinde seçilir). Stil: `ui_pyside/style.py`.
 
 ---
 
@@ -60,8 +63,10 @@ flowchart LR
 
 | Dosya | Rol |
 |-------|-----|
-| `gelirhazirlama.py` | İş motoru + Tk UI + `__main__` |
-| `ui_pyside/suite_page.py` | PySide sayfası (QThread worker) |
+| `gelirhazirlama.py` | İş motoru + Tk UI (yedek) + `__main__` (PySide6 açar) |
+| `ui_pyside/suite_page.py` | PySide sayfası `GelirPage` (QThread worker, sonuç paneli) |
+| `ui_pyside/main_window.py` | Bağımsız pencere + `run_app()` |
+| `ui_pyside/style.py` | QSS renk/stil, rozet çizimi |
 | `run_app.bat` / `build_exe.bat` | Çalıştır / EXE üret |
 | `GelirHazirlama.spec` | PyInstaller spec |
 
@@ -172,8 +177,9 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 
 1. Ham Excel kolonları **başlık adına** bağlı; fazla kolonlar yok sayılır. Başlık adı değişirse alias ekle.
 2. **PDF rename geri alınmaz** — kaynak klasörde dosya adı değişir.
-3. **Tk senkron** — TCMB döngüsü UI’yi dondurabilir; PySide thread’li.
-4. **PySide6 `requirements.txt`’te yok**; EXE sadece Tk paketler.
+3. **Tk senkron** — TCMB döngüsü UI’yi dondurabilir; PySide thread’li (varsayılan arayüz).
+4. **PySide6 EXE’ye girer** — EXE boyutu Tk dönemine göre belirgin büyür (~70–90 MB). `GelirPage` sınıf adı ve argümansız kurucusu suite için korunmalı.
+4b. `run_gelir_export(..., stats={})` sonuç kutucukları için sayıları doldurur; dönüş değeri aynı (geriye uyumlu).
 5. Ham Excel zorunlu başlık yoksa → hata; fazla sütunlar yok sayılır; tarih tipi coerce edilir.
 6. **SSL fallback doğrulamasız** — yalnızca TCMB isteği.
 7. Sipariş alanları hem DataFrame’de hem U/V’de — kolon düzeni bozulmasın diye sabit U/V.
@@ -184,6 +190,12 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 
 Sürüm numarası `app_info.py` → `__version__`; pencere başlığında ve "Sürüm" etiketinde görünür.  
 Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son sayı (1.1.**1**).
+
+### 1.2.0 — 2026-10-05
+- **Yeni:** PySide6 arayüz (kartlar, sonuç paneli, STB eksik listesi, işlem günlüğü); EXE ve `run_app.bat` artık bunu açar. Tk `--tk` ile yedek.
+- **Düzeltme:** Ham Excel’de tutar sütunu tam sayı okunursa (int64) kur bölümü yazılamıyor, satırda kur olup dolar boş kalıyordu (pandas 3). Tutar sütunları ondalığa çevrildi.
+- `build_exe.bat`: PySide6 kurulum adımı; `pip install "paket>=x"` tırnaklandı (önce `>` yönlendirme sayılıyordu).
+- EXE adı sürümlü: `GelirHazirlama-<sürüm>.exe`.
 
 ### 1.1.0 — 2026-10-05
 - **Düzeltme:** AWSOLS `Not: Fatura Açıklaması` metni artık diğer sayfaya taşsa da alınır (bir sonraki `Not:`’a kadar, tüm sayfalar).

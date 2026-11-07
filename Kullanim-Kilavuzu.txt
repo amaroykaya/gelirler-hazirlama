@@ -1,0 +1,239 @@
+================================================================================
+  ANTSIS GELİR HAZIRLAMA — KULLANIM KILAVUZU
+================================================================================
+
+Sürüm: 1.3.0
+Amaç: e-Fatura sisteminden alınan ham satış Excel'i ve fatura PDF'lerinden
+      aylık "gelir kalemleri çalışma" Excel'ini üretmek.
+
+
+--------------------------------------------------------------------------------
+1. PROGRAMI AÇMA
+--------------------------------------------------------------------------------
+
+  • EXE ile: GelirHazirlama-1.3.0.exe dosyasına çift tıklayın.
+  • Proje klasöründen: run_app.bat dosyasına çift tıklayın.
+
+İlk açılışta Windows "Bilinmeyen yayıncı" (SmartScreen) uyarısı verebilir:
+"Ek bilgi" → "Yine de çalıştır".
+
+İşlem sırasında İNTERNET bağlantısı gerekir (dolar kurları TCMB'den alınır).
+
+
+--------------------------------------------------------------------------------
+2. HAZIRLIK — NELER GEREKLİ?
+--------------------------------------------------------------------------------
+
+  • Ham satış Excel'i (ZORUNLU)
+      e-Fatura sisteminden o ayın satış faturaları dökümü.
+      Başlıklar adına göre okunur; sütun sırası ve fazla sütunlar önemli
+      değildir. Şu başlıklar bulunmalıdır:
+        Düzenleme Tarihi, Fatura Türü, Müşteri, Müşteri Kısa Adı,
+        Fatura İsmi, Fatura Sıra, Döviz Tipi, Toplam KDV, Genel Toplam,
+        Genel Toplam (TL), Ürün/Hizmet, Miktar, KDV Oranı
+
+  • Fatura PDF'leri (İSTEĞE BAĞLI ama ÖNERİLİR)
+      Aynı aya ait e-fatura PDF'leri. PDF'ler seçilirse program şunları
+      PDF'lerin içinden okur:
+        — STB / Teknopark proje kodu   → "Teknopark No"
+        — KDV istisna sebebi           → "Özel Açıklama"
+        — İade açıklaması              → "Özel Açıklama"
+        — Sipariş No ve Sorumlu        → U / V sütunları
+        — AWSOLS "Not: Fatura Açıklaması" → "Açıklama"
+      PDF seçilmezse bu alanlar boş kalır ve STB kontrolü yapılmaz.
+
+  • Çıktı klasörü
+      Oluşacak Excel'in kaydedileceği klasör (ör. ...\2026\08).
+
+
+--------------------------------------------------------------------------------
+3. ADIM ADIM KULLANIM
+--------------------------------------------------------------------------------
+
+Pencerede iki kart vardır. Seçilen her şey yeşil kutuda ✓ ile görünür;
+seçilmeyenler gri kesikli kutuda "Seçilmedi" yazar.
+
+3.1  KART 1 — Girdi dosyaları
+  1. "Ham Excel" satırında "Seç…" → ham satış Excel'ini seçin.
+     Program Excel'in ilk tarihine bakıp Ay / Yıl'ı kendisi önerir.
+  2. "Fatura PDF'leri" satırında "Seç…" → PDF'lerin hepsini birden seçin
+     (Ctrl+A veya Ctrl / Shift ile çoklu seçim).
+     Yanlış seçtiyseniz "Temizle" ile kaldırabilirsiniz.
+     Fare ile kutunun üzerine gelince seçilen dosyaların listesi görünür.
+
+3.2  KART 2 — Dönem ve çıktı
+  3. Dönem: Ay ve Yıl'ı kontrol edin (otomatik gelir; gerekirse değiştirin).
+  4. Çıktı klasörü: "Seç…" → kaydedilecek klasörü seçin.
+     (Güvenlik için çıktı klasörü her seferinde yeniden seçilir; yanlış
+     aya kaydetmeyi önler. Dosya pencereleri son kullandığınız klasörde
+     açılır.)
+
+3.3  Excel'i oluşturun
+  5. "Excel'i Oluştur" butonuna basın.
+     Buton; Ham Excel, Çıktı klasörü ve 4 haneli Yıl girilmeden aktif olmaz.
+     Butonun altındaki gri yazı eksik olanı söyler.
+  6. PDF seçtiyseniz soru gelir:
+       "Eşleşen PDF dosyaları yeniden adlandırılsın mı?"
+       — Evet  : PDF'ler kendi klasöründe FATURANO_FİRMA.pdf olarak
+                 yeniden adlandırılır. (GERİ ALINAMAZ)
+       — Hayır : Dosya adları değişmez; PDF içerikleri yine okunur.
+  7. İşlem arka planda yürür; mavi çubuk ve durum yazısı görünür
+     (ör. "TCMB kurları alınıyor… (12 istek)"). Pencere donmaz.
+     Fatura sayısına göre birkaç saniye ile birkaç dakika sürebilir.
+
+
+--------------------------------------------------------------------------------
+4. SONUÇ EKRANI
+--------------------------------------------------------------------------------
+
+İşlem bitince altta yeşil ✓ "Sonuç" kartı çıkar.
+
+Kutucuklar:
+  • fatura satırı   → Excel'e yazılan fatura sayısı
+  • STB kodu eksik  → İade OLMAYAN ama Teknopark No'su bulunamayan fatura
+                      sayısı. 0'dan büyükse kutu SARI olur.
+                      PDF seçilmediyse "—  STB kontrolü yok" yazar.
+  • kur boş satır   → "Kur" sütunu boş kalan satır sayısı (sarıysa kontrol edin)
+  • kur farkı       → Kur ile Kur MB arasında fark olan fatura sayısı
+                      (sarıysa altta liste: kurlar + Fark + TL tutarı =
+                      Toplam Dolar × Kur Fark; Excel'de Kur Fark kırmızı)
+  • PDF seçildi     → Seçilen PDF sayısı
+
+STB kodu eksik listesi:
+  Her satırda fatura no, firma ve sebep yazar:
+    — "PDF seçilmemiş"                        → O faturanın PDF'ini
+                                                 seçmeyi unuttunuz.
+    — "PDF var, içinde STB kodu bulunamadı"   → PDF'te STB kodu yok;
+                                                 elle kontrol edin.
+  Bu faturaların Excel'deki "Teknopark No" hücresi SARI boyanır.
+
+Butonlar:
+  • Excel'i Aç               → Oluşan Excel'i açar (otomatik açılmaz).
+  • Klasörü Aç               → Klasörü açar, dosyayı seçili gösterir.
+  • İşlem günlüğünü göster ▸ → Programın yaptığı her adımın ayrıntılı
+                               kaydı (sorun bildirirken işe yarar).
+
+Hata olursa:
+  Kırmızı "İşlem tamamlanamadı" kartı ve hata mesajı çıkar; işlem günlüğü
+  otomatik açılır. Mesajı okuyun (bkz. Bölüm 7).
+
+
+--------------------------------------------------------------------------------
+5. ÇIKAN EXCEL
+--------------------------------------------------------------------------------
+
+Dosya adı:
+  gelir_kalemleri_{ay}_{yıl}_çalışma.xlsx    (ör. gelir_kalemleri_agustos_2026_çalışma.xlsx)
+
+Aynı adlı dosya Excel'de AÇIKSA program üzerine yazamaz; bunun yerine
+sonuna tarih-saat ekleyerek kaydeder (ör. ..._20261005_171530.xlsx) ve
+sonuç ekranında sarı notla bildirir.
+
+Sütunlar:
+  Ay, No, Tarih, Firma, Tür, Teknopark No, Fatura No, Açıklama,
+  KDV TL, KDV siz TL, Toplam TL, KDV Dolar, KDV siz Dolar, Toplam Dolar,
+  EURO, Durum, Özel Açıklama, Kur, Kur MB
+  + U sütunu: Sipariş No,  V sütunu: Sipariş Sorumlusu
+
+İşaretler:
+  • En altta TOPLAM satırı (formüllü; elle düzeltme yaparsanız toplam
+    kendiliğinden güncellenir).
+  • Özel Açıklama dolu hücreler KIRMIZI yazı.
+  • STB kodu eksik faturaların Teknopark No hücresi SARI.
+
+
+--------------------------------------------------------------------------------
+6. PROGRAMIN UYGULADIĞI KURALLAR (BİLMENİZ GEREKENLER)
+--------------------------------------------------------------------------------
+
+  • Dolar kuru (Kur): Faturada kullanılan / hesaplanan kur. TL satırlarında
+    TCMB'nin önceki iş günü DÖVİZ ALIŞ kuru kullanılır.
+  • Kur MB: Merkez Bankası referans kuru (kontrol için). Diğer firmalarda
+    önceki iş günü ALIŞ; TUALCOM faturalarında önceki iş günü SATIŞ.
+    Kur Fark = Kur − Kur MB; fark varsa sonuç ekranında listelenir.
+
+  • TL kesilen faturalar: TL tutarı kura bölünerek dolar karşılığı yazılır.
+
+  • EURO kesilen faturalar: Tutar EURO sütununa yazılır; ayrıca dolar
+    karşılığı da hesaplanır (bilinçli tercih).
+
+  • İADE faturaları: Ham Excel'de dolar yerinde TL yazdığı için dolar
+    sütunları sıfırlanıp TL ÷ kur ile yeniden hesaplanır. Özel Açıklama'ya
+    iade açıklaması yazılır.
+
+  • KDV'siz (istisnalı) faturalar: PDF'teki istisna sebebi Özel Açıklama'ya
+    yazılır.
+
+  • Açıklama: Faturadaki ürün satırları alt alta birleşir ("ürün N ADET").
+    INSURANCE COST ve FREIGHT COST satırları alınmaz.
+
+  • AWSOLS faturaları: PDF'teki "Not: Fatura Açıklaması:" metni (bir sonraki
+    "Not:"a kadar, sayfa değişse de) Açıklama'ya eklenir.
+
+  • Sipariş No: Önce "SA Emir No", yoksa "Sipariş No / Sipariş Numarası".
+    Sorumlu: "Satınalma Sorumlusu", "Sipariş Sorumlusu" veya
+    "Satın Alma Departmanı". Firma TUSAŞ ise ve bunlar yoksa "İLGİLİ :"
+    satırı kullanılır.
+
+  • Sıralama: Harfle başlayan fatura numaraları önce, rakamla başlayanlar
+    sonra; No sütunu 1'den yeniden numaralanır.
+
+
+--------------------------------------------------------------------------------
+7. SIK KARŞILAŞILAN DURUMLAR
+--------------------------------------------------------------------------------
+
+Soru: "Ham Excel'de zorunlu sütun(lar) bulunamadı" hatası.
+Cevap: e-Fatura dökümünde bir başlığın adı değişmiş veya sütun eksik.
+       Mesajda hangi başlığın arandığı ve dosyadaki başlıklar yazar.
+       Doğru dökümü alın; başlık kalıcı olarak değiştiyse programın
+       güncellenmesi gerekir.
+
+Soru: "Excel'i Oluştur" butonu basılmıyor (soluk mavi).
+Cevap: Ham Excel, Çıktı klasörü ve Yıl (4 hane) dolu olmalı. Butonun
+       altındaki yazı neyin eksik olduğunu söyler.
+
+Soru: STB kodu eksik listesinde "PDF seçilmemiş" yazıyor.
+Cevap: O faturanın PDF'i seçilenler arasında yok ya da PDF dosya adında
+       fatura numarası yok. PDF'i ekleyip yeniden çalıştırın.
+
+Soru: "PDF var, içinde STB kodu bulunamadı".
+Cevap: PDF'te STB / Teknopark kodu yazmıyor. Faturayı kontrol edin;
+       Ar-Ge dışı bir faturaysa normaldir, Excel'de elle düzeltebilirsiniz.
+
+Soru: Kur sütunları boş geldi / "kur boş satır" sarı.
+Cevap: İnternet bağlantısını veya TCMB sitesine erişimi kontrol edin,
+       sonra programı yeniden çalıştırın.
+
+Soru: Çıkan dosyanın adında tarih-saat var.
+Cevap: Aynı adlı dosya Excel'de açıktı. Eski dosyayı kapatıp yeniden
+       çalıştırın veya yeni dosyayı kullanın.
+
+Soru: Sipariş No / Sorumlu boş geldi.
+Cevap: PDF'te bu bilgiler program tarafından tanınan etiketlerle
+       yazılmamış olabilir. Örnek PDF ile destek isteyin; yeni etiket
+       eklenebilir.
+
+Soru: PDF'lerin adı değişti, eski haline nasıl dönerim?
+Cevap: Yeniden adlandırma geri alınamaz. Adların değişmesini
+       istemiyorsanız soru geldiğinde "Hayır" deyin.
+
+
+--------------------------------------------------------------------------------
+8. HIZLI KONTROL LİSTESİ
+--------------------------------------------------------------------------------
+
+  [ ] Ham satış Excel'i seçildi
+  [ ] O aya ait tüm fatura PDF'leri seçildi
+  [ ] Ay / Yıl doğru
+  [ ] Çıktı klasörü doğru ayın klasörü
+  [ ] PDF yeniden adlandırma sorusu bilinçli cevaplandı
+  [ ] Sonuç ekranında STB kodu eksik listesi kontrol edildi
+  [ ] "kur boş satır" 0 (değilse internet kontrol edilip yeniden çalıştırıldı)
+  [ ] Excel açılıp sarı hücreler ve kırmızı Özel Açıklamalar gözden geçirildi
+
+
+================================================================================
+  Sorun devam ederse: ekran görüntüsü + "İşlem günlüğünü göster" içeriği +
+  ilgili Excel / PDF örneği ile destek isteyin.
+================================================================================

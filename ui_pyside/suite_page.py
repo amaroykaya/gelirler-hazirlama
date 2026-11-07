@@ -359,8 +359,15 @@ class GelirPage(QWidget):
         self._tile_fatura = _Tile("fatura satırı")
         self._tile_stb = _Tile("STB kodu eksik")
         self._tile_kur = _Tile("kur boş satır")
+        self._tile_kur_fark = _Tile("kur farkı")
         self._tile_pdf = _Tile("PDF seçildi")
-        for t in (self._tile_fatura, self._tile_stb, self._tile_kur, self._tile_pdf):
+        for t in (
+            self._tile_fatura,
+            self._tile_stb,
+            self._tile_kur,
+            self._tile_kur_fark,
+            self._tile_pdf,
+        ):
             tiles.addWidget(t)
         card.body.addWidget(self._tiles_row)
 
@@ -390,6 +397,29 @@ class GelirPage(QWidget):
         self._stb_scroll.setWidget(self._stb_list_host)
         stb_v.addWidget(self._stb_scroll)
         card.body.addWidget(self._stb_box)
+
+        self._kur_fark_box = QWidget()
+        kf_v = QVBoxLayout(self._kur_fark_box)
+        kf_v.setContentsMargins(0, 0, 0, 0)
+        kf_v.setSpacing(4)
+        kf_v.addWidget(
+            _label(
+                "Kur farkı (Kur ≠ Kur MB) — Excel'de Kur Fark kırmızı; Tualcom MB = satış",
+                "warnHead",
+            )
+        )
+        self._kur_fark_scroll = QScrollArea()
+        self._kur_fark_scroll.setWidgetResizable(True)
+        self._kur_fark_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._kur_fark_scroll.setObjectName("stbScroll")
+        self._kur_fark_list_host = QWidget()
+        self._kur_fark_list_host.setObjectName("stbHost")
+        self._kur_fark_list = QVBoxLayout(self._kur_fark_list_host)
+        self._kur_fark_list.setContentsMargins(0, 0, 0, 0)
+        self._kur_fark_list.setSpacing(4)
+        self._kur_fark_scroll.setWidget(self._kur_fark_list_host)
+        kf_v.addWidget(self._kur_fark_scroll)
+        card.body.addWidget(self._kur_fark_box)
 
         self._path_label = _label("", "pathText")
         self._path_label.setWordWrap(True)
@@ -637,9 +667,14 @@ class GelirPage(QWidget):
             self._tile_stb.set_value("—", "STB kontrolü yok (PDF seçilmedi)", warn=True)
         kur_bos = int(stats.get("kur_bos", 0) or 0)
         self._tile_kur.set_value(str(kur_bos), "kur boş satır", warn=kur_bos > 0)
+        kur_fark = stats.get("kur_fark", [])
+        self._tile_kur_fark.set_value(
+            str(len(kur_fark)), "kur farkı", warn=bool(kur_fark)
+        )
         self._tile_pdf.set_value(str(stats.get("pdf_secilen", 0)), "PDF seçildi")
 
         self._fill_stb_list(stb_eksik)
+        self._fill_kur_fark_list(kur_fark)
         self._note.setText(warn)
         self._note.setVisible(bool(warn))
         self._path_label.setText(f"Kaydedildi: {Path(path).name}")
@@ -665,12 +700,47 @@ class GelirPage(QWidget):
         self._stb_scroll.setFixedHeight(min(shown, 8) * 22 + 4)
         self._stb_box.show()
 
+    def _fill_kur_fark_list(self, rows) -> None:
+        while self._kur_fark_list.count():
+            item = self._kur_fark_list.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not rows:
+            self._kur_fark_box.hide()
+            return
+        for row in rows[:_STB_LISTE_LIMIT]:
+            fno, firma, kur_v, mb_v, fark, mb_etiket, fark_tl = row
+            kur_s = f"{kur_v:.4f}" if kur_v is not None else "—"
+            mb_s = f"{mb_v:.4f}" if mb_v is not None else "—"
+            if fark_tl is not None:
+                tl_s = f"{fark_tl:,.2f} TL".replace(",", "X").replace(".", ",").replace("X", ".")
+            else:
+                tl_s = "—"
+            lbl = _label(
+                f"•  {fno}  {firma} — Kur {kur_s} / MB {mb_s} ({mb_etiket}) / "
+                f"Fark {fark:.4f} ({tl_s})",
+                "warnRow",
+            )
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            self._kur_fark_list.addWidget(lbl)
+        if len(rows) > _STB_LISTE_LIMIT:
+            self._kur_fark_list.addWidget(
+                _label(
+                    f"… ve {len(rows) - _STB_LISTE_LIMIT} fatura daha (günlükte tam liste)",
+                    "warnRow",
+                )
+            )
+        shown = min(len(rows), _STB_LISTE_LIMIT) + (1 if len(rows) > _STB_LISTE_LIMIT else 0)
+        self._kur_fark_scroll.setFixedHeight(min(shown, 8) * 22 + 4)
+        self._kur_fark_box.show()
+
     @Slot(str)
     def _on_err(self, msg: str) -> None:
         self._append_log("--- İşlem hata ile bitti ---")
         self._result.set_head("!", "İşlem tamamlanamadı", tone="err")
         self._tiles_row.hide()
         self._stb_box.hide()
+        self._kur_fark_box.hide()
         self._note.hide()
         self._open_excel_btn.hide()
         self._open_dir_btn.hide()

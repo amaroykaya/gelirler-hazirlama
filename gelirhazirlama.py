@@ -60,12 +60,14 @@ def _fetch_tcmb_xml(url):
             time.sleep(0.5)
     return None, None
 
-def get_tcmb_dollar_rate(tarih):
+def get_tcmb_dollar_rate(tarih, rate_type: str = "buying"):
     """
-    TCMB'den belirtilen tarihten bir önceki iş gününün USD/TRY alış kurunu alır.
+    TCMB'den belirtilen tarihten bir önceki iş gününün USD/TRY kurunu alır.
+    rate_type: "buying" → ForexBuying (alış), "selling" → ForexSelling (satış).
     Hafta sonu atlanır. Dosya yoksa (HTTP != 200) bir gün geri gidilir.
     İstek hatası (SSL, timeout vb.) olursa eski güne düşülmez, None döner.
     """
+    tag = "ForexSelling" if str(rate_type).strip().lower() == "selling" else "ForexBuying"
     try:
         # Tarihten bir önceki günü hesapla
         onceki_gun = tarih - timedelta(days=1)
@@ -85,7 +87,7 @@ def get_tcmb_dollar_rate(tarih):
             yil_ay = onceki_gun.strftime("%Y%m")
             gun = onceki_gun.strftime("%d%m%Y")
             url = f"https://www.tcmb.gov.tr/kurlar/{yil_ay}/{gun}.xml"
-            print(f"[TCMB] URL denenecek: {url}")
+            print(f"[TCMB] URL denenecek ({tag}): {url}")
 
             status_code, content = _fetch_tcmb_xml(url)
 
@@ -104,19 +106,19 @@ def get_tcmb_dollar_rate(tarih):
                 root = ET.fromstring(content)
                 for currency in root.findall(".//Currency"):
                     if currency.get("CurrencyCode") == "USD":
-                        forex_buying = currency.find("ForexBuying")
+                        forex_node = currency.find(tag)
                         if (
-                            forex_buying is not None
-                            and forex_buying.text
-                            and forex_buying.text.strip()
+                            forex_node is not None
+                            and forex_node.text
+                            and forex_node.text.strip()
                         ):
-                            kur_degeri = forex_buying.text.replace(",", ".").strip()
+                            kur_degeri = forex_node.text.replace(",", ".").strip()
                             if kur_degeri:
                                 return float(kur_degeri)
             except Exception as xml_err:
                 print(f"[TCMB] XML parse hatası: {url} -> {xml_err}")
 
-            # 200 ama USD/ForexBuying yok → bir gün geri
+            # 200 ama USD / istenen kur etiketi yok → bir gün geri
             onceki_gun -= timedelta(days=1)
             deneme_sayisi += 1
 
@@ -724,6 +726,11 @@ STB_EKSIK_COL = "_STB Eksik"
 # Firma (müşteri kısa adı) _normalize_col_name ile karşılaştırılır (TUSAŞ → "tusas").
 SORUMLU_ILGILI_FIRMALAR = {"tusas"}
 
+# Kur MB için TCMB satış (ForexSelling) kullanılacak firmalar; diğerleri alış (ForexBuying).
+# Firma (müşteri kısa adı) _normalize_col_name ile karşılaştırılır (TUALCOM → "tualcom").
+# Kur (fatura) sütunu değişmez; yalnızca Kur MB / Kur Fark kontrolü etkilenir.
+KUR_MB_SATIS_FIRMALAR = {"tualcom"}
+
 # Ham Excel iloc eşlemesi yerine başlık adına göre okunur.
 # Fazla sütunlar yok sayılır; gerekli başlık yoksa net hata verilir.
 _HAM_EXCEL_SUTUN_ALIAS = {
@@ -913,7 +920,8 @@ def isle_fatura_dosyasi(
     rename_pdfs  : True ise eşleşen PDF'leri kaynak klasörde yeniden adlandırır
     stats        : verilirse arayüz için yapısal sayılarla doldurulur
                    (fatura_satiri, pdf_secilen, stb_eslesen, stb_kontrol_yapildi,
-                   stb_eksik [(fatura_no, firma, sebep)], kur_bos, kur_mb_bos)
+                   stb_eksik [(fatura_no, firma, sebep)], kur_bos, kur_mb_bos,
+                   kur_fark [(fatura_no, firma, kur, kur_mb, fark, mb_etiket, fark_tl)])
     Dönüş        : (final DataFrame, işlem özeti satırları)
     """
     if yil is None:
@@ -1565,22 +1573,25 @@ def isle_fatura_dosyasi(
     # Sadece mevcut sütunları al (Kur Fark henüz yok)
     final_tot = final_tot[[col for col in column_order if col in final_tot.columns]]
     
-    # Kur MB: Kur'dan bağımsız referans sütunu; tüm işlemler bittikten sonra tek seferde doldurulur
+    # Kur MB: Kur'dan bağımsız referans; Tualcom → satış, diğerleri → alış
     final_tot["Kur MB"] = np.nan
-    kur_mb_cache = {}
+    kur_mb_cache = {}  # (tarih_str, rate_type) -> kur
     for idx in final_tot.index:
         try:
             tarih_str = final_tot.at[idx, "Tarih"]
             if pd.isna(tarih_str) or str(tarih_str).strip() == "":
                 continue
             tarih_str = str(tarih_str).strip()
-            if tarih_str not in kur_mb_cache:
+            firma_n = _normalize_col_name(final_tot.at[idx, "Firma"]) if "Firma" in final_tot.columns else ""
+            rate_type = "selling" if firma_n in KUR_MB_SATIS_FIRMALAR else "buying"
+            cache_key = (tarih_str, rate_type)
+            if cache_key not in kur_mb_cache:
                 dt = datetime.strptime(tarih_str, "%d.%m.%Y")
-                rate = get_tcmb_dollar_rate(dt)
+                rate = get_tcmb_dollar_rate(dt, rate_type=rate_type)
                 if rate and rate > 0:
-                    kur_mb_cache[tarih_str] = round(rate, 4)
-            if tarih_str in kur_mb_cache:
-                final_tot.at[idx, "Kur MB"] = kur_mb_cache[tarih_str]
+                    kur_mb_cache[cache_key] = round(rate, 4)
+            if cache_key in kur_mb_cache:
+                final_tot.at[idx, "Kur MB"] = kur_mb_cache[cache_key]
         except Exception as e:
             print(f"[Kur MB] Satır {idx}: {e}")
             continue
@@ -1589,6 +1600,44 @@ def isle_fatura_dosyasi(
     kur_num = pd.to_numeric(final_tot["Kur"], errors="coerce")
     kur_mb_num = pd.to_numeric(final_tot["Kur MB"], errors="coerce")
     final_tot["Kur Fark"] = (kur_num - kur_mb_num).round(4)
+
+    kur_fark_list = []
+    for idx in final_tot.index:
+        fark = final_tot.at[idx, "Kur Fark"]
+        if pd.isna(fark) or abs(float(fark)) <= 1e-6:
+            continue
+        fno = final_tot.at[idx, "Fatura No"] if "Fatura No" in final_tot.columns else ""
+        fno = "" if pd.isna(fno) else str(fno).strip()
+        firma = final_tot.at[idx, "Firma"] if "Firma" in final_tot.columns else ""
+        firma = "" if pd.isna(firma) else str(firma).strip()
+        kur_v = final_tot.at[idx, "Kur"]
+        mb_v = final_tot.at[idx, "Kur MB"]
+        mb_etiket = (
+            "satış"
+            if _normalize_col_name(firma) in KUR_MB_SATIS_FIRMALAR
+            else "alış"
+        )
+        toplam_dolar = (
+            final_tot.at[idx, "Toplam Dolar"]
+            if "Toplam Dolar" in final_tot.columns
+            else np.nan
+        )
+        fark_f = float(fark)
+        if pd.notna(toplam_dolar):
+            fark_tl = round(float(toplam_dolar) * fark_f, 2)
+        else:
+            fark_tl = None
+        kur_fark_list.append(
+            (
+                fno or "(fatura no yok)",
+                firma,
+                float(kur_v) if pd.notna(kur_v) else None,
+                float(mb_v) if pd.notna(mb_v) else None,
+                fark_f,
+                mb_etiket,
+                fark_tl,
+            )
+        )
 
     final_tot = final_tot[[col for col in column_order if col in final_tot.columns]]
     
@@ -1630,12 +1679,23 @@ def isle_fatura_dosyasi(
         bos_mb = int(final_tot["Kur MB"].isna().sum())
         if bos_mb:
             summary.append(f"Kur MB boş satır: {bos_mb}")
-    if "Kur Fark" in final_tot.columns:
-        fark_nonzero = int(
-            ((final_tot["Kur Fark"].notna()) & (final_tot["Kur Fark"].abs() > 1e-6)).sum()
+    if kur_fark_list:
+        summary.append("")
+        summary.append(
+            f"UYARI: Kur Fark ≠ 0: {len(kur_fark_list)} fatura "
+            f"(Excel'de Kur Fark kırmızı; Tualcom Kur MB = satış)"
         )
-        if fark_nonzero:
-            summary.append(f"Kur Fark ≠ 0 satır: {fark_nonzero}")
+        limit = 30
+        for fno, firma, kur_v, mb_v, fark, mb_etiket, fark_tl in kur_fark_list[:limit]:
+            kur_s = f"{kur_v:.4f}" if kur_v is not None else "—"
+            mb_s = f"{mb_v:.4f}" if mb_v is not None else "—"
+            tl_s = f"{fark_tl:,.2f} TL".replace(",", "X").replace(".", ",").replace("X", ".") if fark_tl is not None else "—"
+            summary.append(
+                f"- {fno} {firma} — Kur {kur_s} / MB {mb_s} ({mb_etiket}) / "
+                f"Fark {fark:.4f} ({tl_s})"
+            )
+        if len(kur_fark_list) > limit:
+            summary.append(f"... ve {len(kur_fark_list) - limit} fatura daha")
 
     # --- STB kontrolü: tüm kurallar uygulandıktan sonra, Excel'e yazılacak son veri üzerinde ---
     final_tot[STB_EKSIK_COL] = False
@@ -1683,6 +1743,7 @@ def isle_fatura_dosyasi(
                 "stb_eksik": list(stb_eksik),
                 "kur_bos": int(final_tot["Kur"].isna().sum()) if "Kur" in final_tot.columns else 0,
                 "kur_mb_bos": int(final_tot["Kur MB"].isna().sum()) if "Kur MB" in final_tot.columns else 0,
+                "kur_fark": list(kur_fark_list),
             }
         )
 

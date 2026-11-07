@@ -18,7 +18,7 @@ Windows masaüstü kullanıcıları; kurulum gerektirmeyen tek EXE veya kaynak +
 2. Python bulunur, paketler kurulur.
 3. Sürüm `app_info.py` → `__version__`’dan okunur.
 4. PyInstaller: `--onefile --windowed --name=GelirHazirlama-<sürüm> --hidden-import=pdfplumber --hidden-import=ui_pyside.main_window` + branding/ikon → `gelirhazirlama.py`
-5. Çıktı: `dist\GelirHazirlama-<sürüm>.exe` (ör. `GelirHazirlama-1.2.0.exe`)
+5. Çıktı: `dist\GelirHazirlama-<sürüm>.exe` (ör. `GelirHazirlama-1.3.0.exe`)
 
 `GelirHazirlama.spec`: `console=False`, `upx=True`, aynı giriş noktası.
 

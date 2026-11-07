@@ -146,8 +146,9 @@ Dip satırda `TOPLAM` + ilgili kolonlarda `=SUM(...)` formülleri. **Özel Açı
 - `KDV TL == 0` → Özel Açıklama’ya PDF istisna sebebi.
 - Döviz ≠ USD/TRL/TRY → Q tutarı `EURO` kolonuna.
 - `Toplam TL ≈ Toplam Dolar` (< 0.01) → USD alanları 0.
-- Kur: TCMB önceki iş günü **ForexBuying**; veya mevcut TL/USD oranı.
-- **Kur MB**: tüm satırlar için TCMB (tarih cache); `Kur`’dan bağımsız.
+- Kur: TCMB önceki iş günü **ForexBuying**; veya mevcut TL/USD oranı (fatura kuru; firma özel kuralı yok).
+- **Kur MB**: `Kur`’dan bağımsız TCMB referansı. Varsayılan **alış** (`ForexBuying`); Firma TUALCOM ise **satış** (`ForexSelling`). Cache anahtarı `(tarih, rate_type)`.
+- **Kur Fark**: `Kur − Kur MB`; ≠ 0 satırlar sonuç ekranında listelenir (kutucuk + liste), Excel’de kırmızı.
 
 ### Sıralama
 Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş en sonda; sonra `No` 1…n yeniden numaralanır.
@@ -191,6 +192,11 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 Sürüm numarası `app_info.py` → `__version__`; pencere başlığında ve "Sürüm" etiketinde görünür.  
 Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son sayı (1.1.**1**).
 
+### 1.3.0 — 2026-11-07
+- **Yeni:** Kur MB — Firma TUALCOM ise önceki iş günü TCMB **satış** (`ForexSelling`); diğer firmalar **alış**. `Kur` (fatura) değişmez; `Kur Fark` buna göre kontrol edilir.
+- **Yeni:** Sonuç ekranında **kur farkı** kutucuğu + liste (Kur / MB / Fark + TL = Toplam Dolar × Kur Fark).
+- **Yeni:** `Kullanim-Kilavuzu.txt` (son kullanıcı).
+
 ### 1.2.0 — 2026-10-05
 - **Yeni:** PySide6 arayüz (kartlar, sonuç paneli, STB eksik listesi, işlem günlüğü); EXE ve `run_app.bat` artık bunu açar. Tk `--tk` ile yedek.
 - **Düzeltme:** Ham Excel’de tutar sütunu tam sayı okunursa (int64) kur bölümü yazılamıyor, satırda kur olup dolar boş kalıyordu (pandas 3). Tutar sütunları ondalığa çevrildi.
@@ -219,6 +225,7 @@ Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son say
 | [component-inventory.md](./component-inventory.md) | Bileşenler |
 | [development-guide.md](./development-guide.md) | Kurulum ve build |
 | [deployment-guide.md](./deployment-guide.md) | EXE dağıtım |
+| [../Kullanim-Kilavuzu.txt](../Kullanim-Kilavuzu.txt) | Son kullanıcı kılavuzu (sürüm değişince güncelle) |
 
 ---
 

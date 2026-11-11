@@ -12,7 +12,7 @@ import traceback
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 from PySide6.QtCore import QObject, QSettings, Qt, QThread, QUrl, Signal, Slot
@@ -165,13 +165,15 @@ class _Tile(QFrame):
 
 
 class GelirPage(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, on_back: Optional[Callable[[], None]] = None) -> None:
         super().__init__()
         self.setObjectName("gelirRoot")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(PAGE_QSS)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
+        # Suite host GelirPage() diye çağırır; on_back yalnızca bağımsız pencerede menüye dönüş içindir.
+        self._on_back = on_back
         self._settings = QSettings("Antsis", "GelirHazirlama")
         self._excel_path = ""
         self._pdf_paths: List[str] = []
@@ -256,6 +258,12 @@ class GelirPage(QWidget):
         titles.addWidget(_label("Satış faturaları → gelir kalemleri çalışma dosyası", "appSub"))
         h.addLayout(titles)
         h.addStretch(1)
+        if self._on_back is not None:
+            back = QPushButton("← Ana Menü")
+            back.setObjectName("link")
+            back.setCursor(Qt.CursorShape.PointingHandCursor)
+            back.clicked.connect(self._on_back)
+            h.addWidget(back, alignment=Qt.AlignmentFlag.AlignTop)
         h.addWidget(_label(f"v{__version__}", "version"), alignment=Qt.AlignmentFlag.AlignTop)
         return header
 

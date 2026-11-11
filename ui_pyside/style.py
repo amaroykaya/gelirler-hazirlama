@@ -78,6 +78,19 @@ QPlainTextEdit#log { background: #0f172a; color: #e2e8f0; border: none; border-r
                      padding: 8px; }
 QScrollArea { border: none; }
 QScrollArea#stbScroll, QWidget#stbHost { background: #ffffff; }
+
+QPushButton#menuCard {
+    text-align: left; padding: 18px 20px; border: 1px solid #e2e8f0;
+    border-radius: 10px; background: #ffffff; min-height: 72px;
+}
+QPushButton#menuCard:hover { border-color: #2563eb; background: #f8fafc; }
+QPushButton#menuCard:pressed { background: #eff6ff; }
+QLabel#menuCardTitle { font-size: 15px; font-weight: 600; }
+QLabel#menuCardSub { font-size: 12px; color: #64748b; }
+
+QLabel#sonucOk { color: #166534; font-weight: 600; }
+QLabel#sonucUyari { color: #92400e; font-weight: 600; }
+QLabel#sonucYok { color: #991b1b; font-weight: 600; }
 """
 
 

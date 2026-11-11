@@ -2,7 +2,7 @@
   ANTSIS GELİR HAZIRLAMA — KULLANIM KILAVUZU
 ================================================================================
 
-Sürüm: 1.3.0
+Sürüm: 1.4.0
 Amaç: e-Fatura sisteminden alınan ham satış Excel'i ve fatura PDF'lerinden
       aylık "gelir kalemleri çalışma" Excel'ini üretmek.
 
@@ -11,13 +11,18 @@ Amaç: e-Fatura sisteminden alınan ham satış Excel'i ve fatura PDF'lerinden
 1. PROGRAMI AÇMA
 --------------------------------------------------------------------------------
 
-  • EXE ile: GelirHazirlama-1.3.0.exe dosyasına çift tıklayın.
+  • EXE ile: GelirHazirlama-1.4.0.exe dosyasına çift tıklayın.
   • Proje klasöründen: run_app.bat dosyasına çift tıklayın.
+
+İlk açılışta ana menü gelir:
+  • Gelir Hazırlama          → aşağıdaki adımlar (bu kılavuzun konusu)
+  • Fatura Tutar Kontrolü    → satış ↔ sipariş KDV'siz tutar karşılaştırması
+                               (ayrı ekran; 3 ayda bir kullanım)
 
 İlk açılışta Windows "Bilinmeyen yayıncı" (SmartScreen) uyarısı verebilir:
 "Ek bilgi" → "Yine de çalıştır".
 
-İşlem sırasında İNTERNET bağlantısı gerekir (dolar kurları TCMB'den alınır).
+Gelir hazırlama işlemi sırasında İNTERNET gerekir (dolar kurları TCMB'den).
 
 
 --------------------------------------------------------------------------------

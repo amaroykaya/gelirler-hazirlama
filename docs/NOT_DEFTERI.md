@@ -20,10 +20,10 @@ gelir_kalemleri_{ay}_{yil}_çalışma.xlsx
 
 | Yol | Komut / dosya | Arayüz |
 |-----|---------------|--------|
-| Geliştirme | `run_app.bat` veya `python gelirhazirlama.py` | **PySide6** (yoksa Tk’ye düşer) |
-| EXE | `dist\GelirHazirlama-<sürüm>.exe` (`build_exe.bat`, sürüm `app_info.py`’den) | **PySide6** |
-| Klasik arayüz | `python gelirhazirlama.py --tk` | **Tkinter** (yedek) |
-| Birleşik suite | Harici kabuk `ui_pyside.suite_page.GelirPage` import eder | **PySide6** (aynı sayfa) |
+| Geliştirme | `run_app.bat` veya `python gelirhazirlama.py` | **PySide6** ana menü (yoksa Tk’ye düşer) |
+| EXE | `dist\GelirHazirlama-<sürüm>.exe` (`build_exe.bat`, sürüm `app_info.py`’den) | **PySide6** ana menü |
+| Klasik arayüz | `python gelirhazirlama.py --tk` | **Tkinter** (yalnızca gelir; yedek) |
+| Birleşik suite | Harici kabuk `ui_pyside.suite_page.GelirPage` import eder | **PySide6** (doğrudan gelir sayfası; menü yok) |
 
 Tüm arayüzler aynı motoru kullanır: `run_gelir_export` → `isle_fatura_dosyasi`.
 
@@ -65,6 +65,9 @@ flowchart LR
 |-------|-----|
 | `gelirhazirlama.py` | İş motoru + Tk UI (yedek) + `__main__` (PySide6 açar) |
 | `ui_pyside/suite_page.py` | PySide sayfası `GelirPage` (QThread worker, sonuç paneli) |
+| `ui_pyside/menu_page.py` | Ana menü (Gelir / Fatura Tutar Kontrolü) |
+| `ui_pyside/tutar_kontrol_page.py` | Fatura tutar kontrolü sayfası |
+| `fatura_tutar_kontrol.py` | Tutar karşılaştırma motoru (gelir akışından bağımsız) |
 | `ui_pyside/main_window.py` | Bağımsız pencere + `run_app()` |
 | `ui_pyside/style.py` | QSS renk/stil, rozet çizimi |
 | `run_app.bat` / `build_exe.bat` | Çalıştır / EXE üret |
@@ -191,6 +194,19 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 
 Sürüm numarası `app_info.py` → `__version__`; pencere başlığında ve "Sürüm" etiketinde görünür.  
 Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son sayı (1.1.**1**).
+
+### 1.4.0 — 2026-11-11
+- **Yeni:** Ana menü — Gelir Hazırlama | Fatura Tutar Kontrolü (gelir akışına dokunulmaz).
+- **Yeni:** Fatura tutar kontrolü — `gelir_kalemleri` ↔ siparişler (`Fatura Durumu` + `Toplam Fiyat` toplamı); OK / UYARI / YOK.
+- **Yeni:** Kontrol Excel çıktısı (`fatura_tutar_kontrol_*.xlsx`, Sonuç + Özet).
+
+### Fatura Tutar Kontrolü (ayrı akış)
+- Ana menüden açılır; gelir hazırlama motoruna dokunmaz.
+- Girdi: **gelir_kalemleri_*.xlsx** + siparişler Excel.
+- Gelir tarafı: hazır `Fatura No` + `KDV siz Dolar` (TOPLAM satırı atılır).
+- Sipariş: `Fatura Durumu` (= fatura no) dolu satırların `Toplam Fiyat` toplamı.
+- Sürücü = gelir kalemleri faturaları → **OK** / **UYARI** / **YOK**. Tolerans yok. Ters kontrol yok.
+- Çıktı: `fatura_tutar_kontrol_YYYYMMDD_HHMMSS.xlsx` — sayfalar **Sonuç** (tüm satırlar, UYARI/YOK boyalı) + **Özet**.
 
 ### 1.3.0 — 2026-11-07
 - **Yeni:** Kur MB — Firma TUALCOM ise önceki iş günü TCMB **satış** (`ForexSelling`); diğer firmalar **alış**. `Kur` (fatura) değişmez; `Kur Fark` buna göre kontrol edilir.

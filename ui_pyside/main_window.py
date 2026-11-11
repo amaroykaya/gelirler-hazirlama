@@ -1,4 +1,4 @@
-"""Gelir Hazırlama — bağımsız PySide6 penceresi (EXE / run_app.bat giriş noktası)."""
+"""Antsis Gelir Araçları — bağımsız PySide6 penceresi (EXE / run_app.bat giriş noktası)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,9 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 
 from app_info import app_window_title
 from ui.branding import pyside_app_icon
+from ui_pyside.menu_page import MenuPage
 from ui_pyside.suite_page import GelirPage
+from ui_pyside.tutar_kontrol_page import TutarKontrolPage
 
 
 class GelirMainWindow(QMainWindow):
@@ -19,9 +21,23 @@ class GelirMainWindow(QMainWindow):
         icon = pyside_app_icon()
         if icon is not None:
             self.setWindowIcon(icon)
-        self.setCentralWidget(GelirPage())
         self.setMinimumSize(620, 560)
         self.resize(720, 820)
+        self.show_menu()
+
+    def show_menu(self) -> None:
+        self.setCentralWidget(
+            MenuPage(
+                on_gelir=self.show_gelir,
+                on_tutar_kontrol=self.show_tutar_kontrol,
+            )
+        )
+
+    def show_gelir(self) -> None:
+        self.setCentralWidget(GelirPage(on_back=self.show_menu))
+
+    def show_tutar_kontrol(self) -> None:
+        self.setCentralWidget(TutarKontrolPage(on_back=self.show_menu))
 
 
 def run_app() -> int:

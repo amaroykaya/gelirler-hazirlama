@@ -2,7 +2,7 @@
   ANTSIS GELİR HAZIRLAMA — KULLANIM KILAVUZU
 ================================================================================
 
-Sürüm: 1.4.0
+Sürüm: 1.5.0
 Amaç: e-Fatura sisteminden alınan ham satış Excel'i ve fatura PDF'lerinden
       aylık "gelir kalemleri çalışma" Excel'ini üretmek.
 
@@ -11,7 +11,7 @@ Amaç: e-Fatura sisteminden alınan ham satış Excel'i ve fatura PDF'lerinden
 1. PROGRAMI AÇMA
 --------------------------------------------------------------------------------
 
-  • EXE ile: GelirHazirlama-1.4.0.exe dosyasına çift tıklayın.
+  • EXE ile: GelirHazirlama-1.5.0.exe dosyasına çift tıklayın.
   • Proje klasöründen: run_app.bat dosyasına çift tıklayın.
 
 İlk açılışta ana menü gelir:
@@ -36,6 +36,7 @@ Gelir hazırlama işlemi sırasında İNTERNET gerekir (dolar kurları TCMB'den)
         Düzenleme Tarihi, Fatura Türü, Müşteri, Müşteri Kısa Adı,
         Fatura İsmi, Fatura Sıra, Döviz Tipi, Toplam KDV, Genel Toplam,
         Genel Toplam (TL), Ürün/Hizmet, Miktar, KDV Oranı
+      İsteğe bağlı: Kategori (Firma > Proje veya düz proje adı) → W / X sütunları.
 
   • Fatura PDF'leri (İSTEĞE BAĞLI ama ÖNERİLİR)
       Aynı aya ait e-fatura PDF'leri. PDF'ler seçilirse program şunları
@@ -82,7 +83,10 @@ seçilmeyenler gri kesikli kutuda "Seçilmedi" yazar.
        — Evet  : PDF'ler kendi klasöründe FATURANO_FİRMA.pdf olarak
                  yeniden adlandırılır. (GERİ ALINAMAZ)
        — Hayır : Dosya adları değişmez; PDF içerikleri yine okunur.
-  7. İşlem arka planda yürür; mavi çubuk ve durum yazısı görünür
+  7. Bilinmeyen proje kodu veya yeni STB kodu çıkarsa program Ana Proje
+     sorar (anten / endustriyel / savunma / diğer). Cevap bir kez kaydedilir;
+     sonraki çalıştırmalarda sorulmaz.
+  8. İşlem arka planda yürür; mavi çubuk ve durum yazısı görünür
      (ör. "TCMB kurları alınıyor… (12 istek)"). Pencere donmaz.
      Fatura sayısına göre birkaç saniye ile birkaç dakika sürebilir.
 
@@ -139,12 +143,15 @@ Sütunlar:
   KDV TL, KDV siz TL, Toplam TL, KDV Dolar, KDV siz Dolar, Toplam Dolar,
   EURO, Durum, Özel Açıklama, Kur, Kur MB
   + U sütunu: Sipariş No,  V sütunu: Sipariş Sorumlusu
+  + W sütunu: Proje (Kategori'den etiket, küçük harf)
+  + X sütunu: Ana Proje (anten / endustriyel / savunma / diğer)
 
 İşaretler:
   • En altta TOPLAM satırı (formüllü; elle düzeltme yaparsanız toplam
     kendiliğinden güncellenir).
   • Özel Açıklama dolu hücreler KIRMIZI yazı.
   • STB kodu eksik faturaların Teknopark No hücresi SARI.
+  • Ana Proje, STB'ye göre beklenenle uyuşmuyorsa X hücresi KIRMIZI.
 
 
 --------------------------------------------------------------------------------
@@ -156,6 +163,10 @@ Sütunlar:
   • Kur MB: Merkez Bankası referans kuru (kontrol için). Diğer firmalarda
     önceki iş günü ALIŞ; TUALCOM faturalarında önceki iş günü SATIŞ.
     Kur Fark = Kur − Kur MB; fark varsa sonuç ekranında listelenir.
+
+  • Proje / Ana Proje: Ham Excel'de Kategori varsa W ve X doldurulur.
+    STB koduna göre beklenen Ana Proje kontrol edilir (baştaki 0'lar
+    yok sayılır: 089247 = 89247). Boş STB → beklenen "diğer".
 
   • TL kesilen faturalar: TL tutarı kura bölünerek dolar karşılığı yazılır.
 

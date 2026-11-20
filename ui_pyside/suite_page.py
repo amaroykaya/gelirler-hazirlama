@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import subprocess
+import threading
 import traceback
 from contextlib import redirect_stdout
 from datetime import datetime
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -36,7 +38,12 @@ from PySide6.QtWidgets import (
 )
 
 from app_info import __version__
-from gelirhazirlama import AY_ADI_SIRALI, _default_ay_yil, run_gelir_export
+from gelirhazirlama import (
+    ANA_PROJE_SECENEKLERI,
+    AY_ADI_SIRALI,
+    _default_ay_yil,
+    run_gelir_export,
+)
 from ui.branding import make_pyside_logo_label
 from ui_pyside.style import PAGE_QSS, badge_pixmap, repolish
 
@@ -69,6 +76,7 @@ class _GelirWorker(QObject):
     """Arka planda `run_gelir_export`; stdout satırları canlı iletilir."""
 
     log_line = Signal(str)
+    need_ana_proje = Signal(str, str)  # kind ("proje"|"stb"), key
     finished_ok = Signal(str, str, str, object)  # path, warn, summary, stats
     finished_err = Signal(str)
 
@@ -88,6 +96,22 @@ class _GelirWorker(QObject):
         self._output_folder = output_folder
         self._pdf_paths = pdf_paths
         self._rename_pdfs = rename_pdfs
+        self._ask_lock = threading.Lock()
+        self._ask_event = threading.Event()
+        self._ask_answer = "diğer"
+
+    def provide_ana_proje_answer(self, answer: str) -> None:
+        # Ana thread'den doğrudan çağrılır (QueuedConnection deadlock olmasın).
+        self._ask_answer = answer or "diğer"
+        self._ask_event.set()
+
+    def _ask_ana_proje(self, kind: str, key: str) -> str:
+        with self._ask_lock:
+            self._ask_event.clear()
+            self._ask_answer = "diğer"
+            self.need_ana_proje.emit(kind, key)
+            self._ask_event.wait(timeout=600)
+            return self._ask_answer or "diğer"
 
     @Slot()
     def run(self) -> None:
@@ -103,6 +127,7 @@ class _GelirWorker(QObject):
                     self._pdf_paths,
                     rename_pdfs=self._rename_pdfs,
                     stats=stats,
+                    ask_ana_proje=self._ask_ana_proje,
                 )
             stream.flush()
             self.finished_ok.emit(path, warn or "", summary or "", stats)
@@ -634,6 +659,7 @@ class GelirPage(QWidget):
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.log_line.connect(self._on_log_line)
+        self._worker.need_ana_proje.connect(self._on_need_ana_proje)
         self._worker.finished_ok.connect(self._on_ok)
         self._worker.finished_err.connect(self._on_err)
         self._worker.finished_ok.connect(self._thread.quit)
@@ -641,6 +667,28 @@ class GelirPage(QWidget):
         self._thread.finished.connect(self._cleanup_thread)
         self._thread.start()
         self._set_busy(True)
+
+    @Slot(str, str)
+    def _on_need_ana_proje(self, kind: str, key: str) -> None:
+        if kind == "stb":
+            title = "Yeni STB kodu"
+            label = f"STB kodu '{key}' için Ana Proje seçin:"
+        else:
+            title = "Yeni proje"
+            label = f"Proje '{key}' için Ana Proje seçin:"
+        items = list(ANA_PROJE_SECENEKLERI)
+        default_idx = items.index("diğer") if "diğer" in items else 0
+        choice, ok = QInputDialog.getItem(
+            self,
+            title,
+            label,
+            items,
+            default_idx,
+            False,
+        )
+        answer = choice if ok and choice else "diğer"
+        if self._worker is not None:
+            self._worker.provide_ana_proje_answer(answer)
 
     @Slot(str)
     def _on_log_line(self, line: str) -> None:

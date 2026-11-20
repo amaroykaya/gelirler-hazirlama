@@ -102,7 +102,8 @@ Başlık adı değişirse `_HAM_EXCEL_SUTUN_ALIAS` içine yeni alias ekle.
 ## 6. Çıktı sütunları
 
 Sıra: `Ay`, `No`, `Tarih`, `Firma`, `Tür`, `Teknopark No`, `Fatura No`, `Açıklama`, `KDV TL`, `KDV siz TL`, `Toplam TL`, `KDV Dolar`, `KDV siz Dolar`, `Toplam Dolar`, `EURO`, `Durum`, `Özel Açıklama`, `Kur`, `Kur MB`  
-(+ DataFrame’de `Sipariş No` / `Sipariş Sorumlusu`; Excel’de ayrıca **U/V** kolonlarına yazılır)
+(+ DataFrame’de `Sipariş No` / `Sipariş Sorumlusu` / `Proje` / `Ana Proje`; Excel’de **U/V/W/X**
+  — W = Kategori proje etiketi (küçük harf); X = Ana Proje (anten / endustriyel / savunma / diğer))
 
 Dip satırda `TOPLAM` + ilgili kolonlarda `=SUM(...)` formülleri. **Özel Açıklama** dolu hücreler kırmızı font.
 
@@ -194,6 +195,14 @@ Harfle başlayan fatura no’lar önce (A–Z), rakamla başlayanlar sonra, boş
 
 Sürüm numarası `app_info.py` → `__version__`; pencere başlığında ve "Sürüm" etiketinde görünür.  
 Kural: yeni özellik → orta sayı (1.**1**.0), yalnızca düzeltme → son sayı (1.1.**1**).
+
+### 1.5.0 — 2026-11-20
+- **Yeni:** Opsiyonel ham `Kategori` → Excel **W (Proje)** etiketleri (küçük harf; `Firma > Proje` sağ taraf).
+- **Yeni:** **X (Ana Proje)** — proje etiketinden (anten / endustriyel / savunma / diğer).
+- **Yeni:** STB ↔ Ana Proje kontrolü — beklenen (STB) ≠ yazılan → X hücresi kırmızı; özet uyarısı.
+- **Yeni:** Bilinmeyen proje veya STB → bir kez sorulur, `ana_proje_eslemeleri.json`’a yazılır (gitignore).
+- Sabit STB: `89247` anten, `95284` endustriyel, `95454` savunma; + `115976` anten, `124867` endustriyel, `124686` savunma. Boş STB → diğer.
+- STB eşlemede baştaki sıfırlar yok sayılır (`089247` = `89247`).
 
 ### 1.4.0 — 2026-11-11
 - **Yeni:** Ana menü — Gelir Hazırlama | Fatura Tutar Kontrolü (gelir akışına dokunulmaz).

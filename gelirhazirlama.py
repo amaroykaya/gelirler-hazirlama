@@ -1,8 +1,9 @@
+import json
 import sys
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import pandas as pd
 import numpy as np
@@ -721,6 +722,18 @@ def extract_siparis_bilgileri(pdf_path):
 
 # Excel'e yazılmayan iç işaret: iade olmayan + STB kodu eksik satır (Teknopark No sarı boyanır).
 STB_EKSIK_COL = "_STB Eksik"
+ANA_PROJE_UYUMSUZ_COL = "_Ana Proje Uyumsuz"
+
+# STB → beklenen Ana Proje (sabit); boş STB → diğer
+STB_ANA_PROJE_SABIT = {
+    "89247": "anten",
+    "95284": "endustriyel",
+    "95454": "savunma",
+    "115976": "anten",
+    "124867": "endustriyel",
+    "124686": "savunma",
+}
+ANA_PROJE_SECENEKLERI = ("anten", "endustriyel", "savunma", "diğer")
 
 # Sorumlu etiketi yoksa PDF'deki "İLGİLİ :" satırının kullanılacağı firmalar.
 # Firma (müşteri kısa adı) _normalize_col_name ile karşılaştırılır (TUSAŞ → "tusas").
@@ -823,6 +836,228 @@ def _normalize_col_name(name) -> str:
     return s
 
 
+def _proje_match_key(proje: str) -> str:
+    """Proje karşılaştırma anahtarı: Türkçe normalize + boşluk/_ → '-'."""
+    n = _normalize_col_name(proje)
+    n = n.replace("_", "-").replace(" ", "-")
+    n = re.sub(r"-+", "-", n).strip("-")
+    return n
+
+
+def _proje_etiket(proje_raw: str) -> str:
+    """
+    Ham proje kodunu kısa etikete çevirir.
+    Eşleşme yoksa ham proje metnini (strip) döner.
+    """
+    if not proje_raw or not str(proje_raw).strip():
+        return ""
+    raw = str(proje_raw).strip()
+    n = _proje_match_key(raw)
+
+    # Sıra: spesifik kodlar önce
+    if n in ("tai", "tai-anten"):
+        return "tai-anten"
+    if n in ("rktsn-sarmal", "aslsn-sarmal", "tualcom-sarmal"):
+        return "sarmal"
+    if n == "rktsn-encoder":
+        return "encoder"
+    if n in ("armsto-fab", "rktsn-fab"):
+        return "fab"
+    if n in ("satis", "iade"):
+        return "diğer"
+    if n == "ctech-satcom":
+        return "ctech"
+    if n == "rktsn-telemetri":
+        return "telemetri"
+    if n == "edtek-anten":
+        return "edtek"
+    if n == "rktsn-ethernet-switch":
+        return "eth"
+    if n == "rktsn-uss":
+        return "uss"
+    return raw.casefold()
+
+
+def _proje_from_kategori(val) -> str:
+    """
+    Kategori → Proje (W).
+    'Firma > Proje' ise sağ taraf; '>' yoksa tüm metin (ör. SATIŞ).
+    Sonra etiket kuralları uygulanır.
+    """
+    if pd.isna(val):
+        return ""
+    s = str(val).strip()
+    if not s:
+        return ""
+    if ">" in s:
+        proje_raw = s.split(">", 1)[1].strip()
+    else:
+        proje_raw = s
+    etiket = _proje_etiket(proje_raw)
+    return etiket.casefold() if etiket else ""
+
+
+def _ana_proje_from_proje(proje: str) -> str:
+    """Proje etiketine göre Ana Proje (X); sabit kurallar; eşleşme yoksa boş."""
+    if not proje or not str(proje).strip():
+        return ""
+    n = _proje_match_key(str(proje).strip())
+    if n in (
+        "sarmal",
+        "tualcom-anten",
+        "tai-anten",
+        "edtek",
+        "ctech",
+        "rktsn-anten",
+        "aslsn-anten",
+    ):
+        return "anten"
+    if n in ("awsols", "creal"):
+        return "endustriyel"
+    if n in (
+        "fab",
+        "eth",
+        "encoder",
+        "telemetri",
+        "testbox",
+        "uss",
+        "rktsn-dvipal",
+    ):
+        return "savunma"
+    if n == "diger":
+        return "diğer"
+    return ""
+
+
+def _ana_proje_maps_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "ana_proje_eslemeleri.json"
+    return Path(__file__).resolve().parent / "ana_proje_eslemeleri.json"
+
+
+def _load_ana_proje_maps() -> dict:
+    path = _ana_proje_maps_path()
+    if not path.is_file():
+        return {"proje": {}, "stb": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return {"proje": {}, "stb": {}}
+        return {
+            "proje": dict(data.get("proje") or {}),
+            "stb": dict(data.get("stb") or {}),
+        }
+    except Exception:  # noqa: BLE001
+        return {"proje": {}, "stb": {}}
+
+
+def _save_ana_proje_maps(maps: dict) -> None:
+    path = _ana_proje_maps_path()
+    path.write_text(
+        json.dumps(
+            {"proje": maps.get("proje") or {}, "stb": maps.get("stb") or {}},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _normalize_ana_proje_cevap(val) -> str:
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return ""
+    n = _proje_match_key(str(val).strip())
+    if n == "diger":
+        return "diğer"
+    if n in ("anten", "endustriyel", "savunma"):
+        return n
+    return ""
+
+
+def _ana_proje_esit(a, b) -> bool:
+    return _proje_match_key(a or "") == _proje_match_key(b or "")
+
+
+def _stb_key(val) -> str:
+    if pd.isna(val):
+        return ""
+    s = str(val).strip()
+    if not s or s == "-":
+        return ""
+    if re.fullmatch(r"\d+\.0+", s):
+        s = s.split(".", 1)[0]
+    # 089247 → 89247 (baştaki sıfırlar eşleştirmede yok sayılır)
+    if s.isdigit():
+        s = s.lstrip("0") or "0"
+    return s
+
+
+def _resolve_ana_proje_for_proje(
+    proje: str,
+    ask_fn: Optional[Callable[[str, str], str]] = None,
+    maps: Optional[dict] = None,
+) -> str:
+    """Sabit kural → kayıtlı eşleme → (ask_fn ile) kullanıcıya sor."""
+    built = _ana_proje_from_proje(proje)
+    if built:
+        return built
+    if not proje or not str(proje).strip():
+        return ""
+    key = str(proje).strip().casefold()
+    store = maps if maps is not None else _load_ana_proje_maps()
+    if key in (store.get("proje") or {}):
+        return _normalize_ana_proje_cevap(store["proje"][key]) or store["proje"][key]
+    if ask_fn is None:
+        return ""
+    ans = _normalize_ana_proje_cevap(ask_fn("proje", key))
+    if not ans:
+        ans = "diğer"
+    store.setdefault("proje", {})[key] = ans
+    _save_ana_proje_maps(store)
+    return ans
+
+
+def _expected_ana_proje_from_stb(
+    stb,
+    ask_fn: Optional[Callable[[str, str], str]] = None,
+    maps: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    STB'den beklenen Ana Proje.
+    Boş STB → diğer. Sabit/kayıtlı kod → değer. Yeni kod → ask_fn; yoksa None.
+    """
+    code = _stb_key(stb)
+    if not code:
+        return "diğer"
+    if code in STB_ANA_PROJE_SABIT:
+        return STB_ANA_PROJE_SABIT[code]
+    store = maps if maps is not None else _load_ana_proje_maps()
+    if code in (store.get("stb") or {}):
+        return _normalize_ana_proje_cevap(store["stb"][code]) or store["stb"][code]
+    if ask_fn is None:
+        return None
+    ans = _normalize_ana_proje_cevap(ask_fn("stb", code))
+    if not ans:
+        ans = "diğer"
+    store.setdefault("stb", {})[code] = ans
+    _save_ana_proje_maps(store)
+    return ans
+
+
+def _find_optional_ham_column(raw: pd.DataFrame, aliases: tuple):
+    """Opsiyonel ham sütun; yoksa None (zorunlu resolve'u etkilemez)."""
+    norm_to_original = {}
+    for col in raw.columns:
+        key = _normalize_col_name(col)
+        if key and key not in norm_to_original:
+            norm_to_original[key] = col
+    for alias in aliases:
+        a = _normalize_col_name(alias)
+        if a in norm_to_original:
+            return raw[norm_to_original[a]]
+    return None
+
+
 def _resolve_ham_excel_columns(raw: pd.DataFrame) -> dict:
     """
     Ham Excel sütunlarını başlık adına göre çözer.
@@ -866,9 +1101,13 @@ def _resolve_ham_excel_columns(raw: pd.DataFrame) -> dict:
 
     ignored = []
     used_originals = {resolved[k].name for k in resolved}
+    optional_norm = {_normalize_col_name(a) for a in ("kategori",)}
     for col in raw.columns:
-        if col not in used_originals:
-            ignored.append(str(col))
+        if col in used_originals:
+            continue
+        if _normalize_col_name(col) in optional_norm:
+            continue
+        ignored.append(str(col))
     if ignored:
         print(
             f"[SÜTUN] {len(ignored)} fazla/bilinmeyen sütun yok sayıldı: "
@@ -910,6 +1149,7 @@ def isle_fatura_dosyasi(
     pdf_paths: list = None,
     rename_pdfs: bool = True,
     stats: Optional[dict] = None,
+    ask_ana_proje: Optional[Callable[[str, str], str]] = None,
 ) -> Tuple[pd.DataFrame, List[str]]:
     """
     girdi_yolu   : satis-faturalari_ekim.xlsx gibi RAW dosya
@@ -918,6 +1158,7 @@ def isle_fatura_dosyasi(
     yil          : çıktı dosya isminde kullanılacak yıl (None → güncel yıl)
     pdf_paths    : PDF dosyası yolları listesi (STB proje kodu için, opsiyonel)
     rename_pdfs  : True ise eşleşen PDF'leri kaynak klasörde yeniden adlandırır
+    ask_ana_proje: yeni proje/STB için Ana Proje sor (kind, key) → cevap
     stats        : verilirse arayüz için yapısal sayılarla doldurulur
                    (fatura_satiri, pdf_secilen, stb_eslesen, stb_kontrol_yapildi,
                    stb_eksik [(fatura_no, firma, sebep)], kur_bos, kur_mb_bos,
@@ -939,6 +1180,7 @@ def isle_fatura_dosyasi(
     
     raw = pd.read_excel(raw_path)
     cols = _resolve_ham_excel_columns(raw)
+    col_kategori = _find_optional_ham_column(raw, ("kategori",))
     summary.append(f"Ham Excel sütun: {raw.shape[1]} (gerekli başlıklar adına göre okundu)")
 
     # PDF'lerden STB, vergi istisna, iade ve (map'te) Not: Fatura Açıklaması çıkarılır
@@ -1089,6 +1331,19 @@ def isle_fatura_dosyasi(
     
     # Fatura No
     out["Fatura No"] = colG.fillna("")
+
+    # Proje (W) + Ana Proje (X): opsiyonel Kategori; yeni proje → ask_ana_proje
+    if col_kategori is not None:
+        proje_list = [_proje_from_kategori(v) for v in col_kategori]
+    else:
+        proje_list = [""] * len(dates)
+    out["Proje"] = proje_list
+    ana_maps = _load_ana_proje_maps()
+    for p in sorted({x for x in proje_list if x and not _ana_proje_from_proje(x)}):
+        _resolve_ana_proje_for_proje(p, ask_fn=ask_ana_proje, maps=ana_maps)
+    out["Ana Proje"] = [
+        _resolve_ana_proje_for_proje(p, ask_fn=None, maps=ana_maps) for p in proje_list
+    ]
     
     # Satır bazlı açıklama (INSURANCE/FREIGHT hariç, miktar eklenmiş)
     blocked = {"INSURANCE COST", "FREIGHT COST"}
@@ -1300,7 +1555,7 @@ def isle_fatura_dosyasi(
     final = out.loc[mask, ["Ay","No","Tarih","Firma","Tür","Teknopark No",
                            "Fatura No","Açıklama","KDV TL","KDV siz TL",
                            "Toplam TL","KDV Dolar","KDV siz Dolar",
-                           "Toplam Dolar","EURO","Özel Açıklama"]].reset_index(drop=True)
+                           "Toplam Dolar","EURO","Özel Açıklama","Proje","Ana Proje"]].reset_index(drop=True)
     
     # Durum: RAW dosyanın B sütunundan, sadece tarih dolu satırlar
     durum_full = colB
@@ -1564,6 +1819,18 @@ def isle_fatura_dosyasi(
         # No sütununu yeniden numaralandır (sıralamadan sonra 1, 2, 3, ...)
         if "No" in final_tot.columns:
             final_tot["No"] = range(1, len(final_tot) + 1)
+
+    # Proje / Ana Proje A–T sırasına girmez (sabit W/X); sıralama sonrası değerleri sakla
+    proje_vals = (
+        final_tot["Proje"].reset_index(drop=True)
+        if "Proje" in final_tot.columns
+        else pd.Series([""] * len(final_tot))
+    )
+    ana_proje_vals = (
+        final_tot["Ana Proje"].reset_index(drop=True)
+        if "Ana Proje" in final_tot.columns
+        else pd.Series([""] * len(final_tot))
+    )
     
     # Sütun sırasını düzenle (Kur MB / Kur Fark henüz yok; sıra son adımda tamamlanır)
     column_order = ["Ay", "No", "Tarih", "Firma", "Tür", "Teknopark No", "Fatura No", "Açıklama",
@@ -1641,9 +1908,44 @@ def isle_fatura_dosyasi(
 
     final_tot = final_tot[[col for col in column_order if col in final_tot.columns]]
     
-    # Sipariş alanları yalnızca Excel U/V kolonuna yazılır (to_excel'e dahil edilmez → T çakışması olmaz)
+    # Sipariş U/V; Proje W; Ana Proje X (to_excel'e dahil edilmez → T çakışması olmaz)
+    final_tot["Proje"] = proje_vals.values
+    final_tot["Ana Proje"] = ana_proje_vals.values
     final_tot["Sipariş No"] = ""
     final_tot["Sipariş Sorumlusu"] = ""
+
+    # STB ↔ Ana Proje kontrolü: beklenen (STB) ≠ yazılan Ana Proje → kırmızı işaret
+    final_tot[ANA_PROJE_UYUMSUZ_COL] = False
+    ana_maps_stb = _load_ana_proje_maps()
+    unknown_stb = sorted(
+        {
+            _stb_key(final_tot.at[idx, "Teknopark No"])
+            for idx in final_tot.index
+            if "Teknopark No" in final_tot.columns
+        }
+        - set(STB_ANA_PROJE_SABIT)
+        - {""}
+    )
+    for code in unknown_stb:
+        if code not in (ana_maps_stb.get("stb") or {}):
+            _expected_ana_proje_from_stb(code, ask_fn=ask_ana_proje, maps=ana_maps_stb)
+    ana_uyumsuz_adet = 0
+    for idx in final_tot.index:
+        ana = final_tot.at[idx, "Ana Proje"] if "Ana Proje" in final_tot.columns else ""
+        stb = final_tot.at[idx, "Teknopark No"] if "Teknopark No" in final_tot.columns else ""
+        expected = _expected_ana_proje_from_stb(stb, ask_fn=None, maps=ana_maps_stb)
+        if expected is None:
+            continue
+        if not _ana_proje_esit(ana, expected):
+            final_tot.at[idx, ANA_PROJE_UYUMSUZ_COL] = True
+            ana_uyumsuz_adet += 1
+    if ana_uyumsuz_adet:
+        summary.append("")
+        summary.append(
+            f"UYARI: Ana Proje / STB uyumsuz: {ana_uyumsuz_adet} fatura "
+            f"(Excel'de Ana Proje kırmızı)"
+        )
+
     if pdf_fatura_siparis_no_map or pdf_fatura_siparis_sorumlu_map or pdf_fatura_ilgili_map:
         for idx in final_tot.index:
             fatura_no = final_tot.at[idx, "Fatura No"] if "Fatura No" in final_tot.columns else ""
@@ -1744,6 +2046,7 @@ def isle_fatura_dosyasi(
                 "kur_bos": int(final_tot["Kur"].isna().sum()) if "Kur" in final_tot.columns else 0,
                 "kur_mb_bos": int(final_tot["Kur MB"].isna().sum()) if "Kur MB" in final_tot.columns else 0,
                 "kur_fark": list(kur_fark_list),
+                "ana_proje_uyumsuz": int(ana_uyumsuz_adet),
             }
         )
 
@@ -1894,16 +2197,38 @@ def _save_gelir_workbook_formulas(final_tot: pd.DataFrame, output_path: Path) ->
         if STB_EKSIK_COL in final_tot.columns
         else pd.Series([False] * len(final_tot))
     )
+    ana_uyumsuz_vals = (
+        final_tot[ANA_PROJE_UYUMSUZ_COL].reset_index(drop=True)
+        if ANA_PROJE_UYUMSUZ_COL in final_tot.columns
+        else pd.Series([False] * len(final_tot))
+    )
 
-    # Sipariş No/Sorumlusu to_excel'e girmez (T = Kur Fark); yalnızca U/V'ye yazılır.
-    # STB_EKSIK_COL iç işarettir, Excel'e kolon olarak yazılmaz.
-    sip_cols = ("Sipariş No", "Sipariş Sorumlusu", STB_EKSIK_COL)
+    # Sipariş/Proje/Ana Proje to_excel'e girmez (T = Kur Fark); yalnızca U/V/W/X'e yazılır.
+    # STB_EKSIK_COL / ANA_PROJE_UYUMSUZ_COL iç işarettir, Excel'e kolon olarak yazılmaz.
+    sip_cols = (
+        "Sipariş No",
+        "Sipariş Sorumlusu",
+        "Proje",
+        "Ana Proje",
+        STB_EKSIK_COL,
+        ANA_PROJE_UYUMSUZ_COL,
+    )
     sip_no_vals = (
         final_tot["Sipariş No"] if "Sipariş No" in final_tot.columns else pd.Series([""] * len(final_tot))
     )
     sip_sorumlu_vals = (
         final_tot["Sipariş Sorumlusu"]
         if "Sipariş Sorumlusu" in final_tot.columns
+        else pd.Series([""] * len(final_tot))
+    )
+    proje_out_vals = (
+        final_tot["Proje"].reset_index(drop=True)
+        if "Proje" in final_tot.columns
+        else pd.Series([""] * len(final_tot))
+    )
+    ana_proje_out_vals = (
+        final_tot["Ana Proje"].reset_index(drop=True)
+        if "Ana Proje" in final_tot.columns
         else pd.Series([""] * len(final_tot))
     )
     export_df = final_tot[[c for c in final_tot.columns if c not in sip_cols]].copy()
@@ -1988,15 +2313,25 @@ def _save_gelir_workbook_formulas(final_tot: pd.DataFrame, output_path: Path) ->
             ),
         )
 
-    # Sipariş bilgilerini sabit U/V kolonlarına yaz
+    # Sipariş / Proje / Ana Proje → sabit U/V/W/X
     ws["U1"] = "Sipariş No"
     ws["V1"] = "Sipariş Sorumlusu"
+    ws["W1"] = "Proje"
+    ws["X1"] = "Ana Proje"
     ws["U1"].font = header_font
     ws["V1"].font = header_font
+    ws["W1"].font = header_font
+    ws["X1"].font = header_font
     for i in range(len(export_df)):
         row = i + 2
         ws.cell(row=row, column=21, value="" if pd.isna(sip_no_vals.iloc[i]) else str(sip_no_vals.iloc[i]))
         ws.cell(row=row, column=22, value="" if pd.isna(sip_sorumlu_vals.iloc[i]) else str(sip_sorumlu_vals.iloc[i]))
+        pv = proje_out_vals.iloc[i] if i < len(proje_out_vals) else ""
+        ws.cell(row=row, column=23, value="" if pd.isna(pv) else str(pv))
+        ap = ana_proje_out_vals.iloc[i] if i < len(ana_proje_out_vals) else ""
+        cell_x = ws.cell(row=row, column=24, value="" if pd.isna(ap) else str(ap))
+        if i < len(ana_uyumsuz_vals) and bool(ana_uyumsuz_vals.iloc[i]):
+            cell_x.font = red_font
 
     _apply_excel_column_layout(ws, last_data_row_excel)
     wb.save(output_path)
@@ -2010,11 +2345,13 @@ def run_gelir_export(
     pdf_paths: Optional[List[str]] = None,
     rename_pdfs: bool = True,
     stats: Optional[dict] = None,
+    ask_ana_proje: Optional[Callable[[str, str], str]] = None,
 ) -> Tuple[str, Optional[str], str]:
     """
     `isle_fatura_dosyasi` + Excel kayıt ve openpyxl son işlemleri (Tk / PySide ortak).
     Dönüş: (kaydedilen yol, zaman damgalı yedek uyarısı veya None, işlem özeti metni).
     `stats` verilirse sonuç paneli için yapısal sayılarla doldurulur.
+    `ask_ana_proje`: yeni proje/STB için Ana Proje seçimi (kind, key) → cevap.
     """
     ay_dosya = AY_ADI_DOSYA_MAP.get(ay_adi_excel, "eylul")
     final_tot, summary_lines = isle_fatura_dosyasi(
@@ -2025,6 +2362,7 @@ def run_gelir_export(
         pdf_paths if pdf_paths else None,
         rename_pdfs=rename_pdfs,
         stats=stats,
+        ask_ana_proje=ask_ana_proje,
     )
     summary = "\n".join(summary_lines) if summary_lines else ""
     out = Path(output_folder) / f"gelir_kalemleri_{ay_dosya}_{yil}_çalışma.xlsx"
@@ -2213,6 +2551,14 @@ class GelirHazirlamaApp:
                 "eşlemesi yapılır, dosya adları değişmez.",
             )
         
+        def _ask_ana_proje_tk(kind: str, key: str) -> str:
+            if kind == "stb":
+                prompt = f"STB kodu '{key}' için Ana Proje girin:\n({', '.join(ANA_PROJE_SECENEKLERI)})"
+            else:
+                prompt = f"Proje '{key}' için Ana Proje girin:\n({', '.join(ANA_PROJE_SECENEKLERI)})"
+            ans = simpledialog.askstring("Ana Proje", prompt, parent=self.root)
+            return _normalize_ana_proje_cevap(ans) or "diğer"
+
         try:
             self.status_label.config(text="İşleniyor...", foreground="blue")
             self.root.update()
@@ -2223,6 +2569,7 @@ class GelirHazirlamaApp:
                 self.output_folder,
                 self.pdf_files if self.pdf_files else None,
                 rename_pdfs=rename_pdfs,
+                ask_ana_proje=_ask_ana_proje_tk,
             )
             self.status_label.config(
                 text=f"✓ İşlem tamamlandı!\n{path}", foreground="green"

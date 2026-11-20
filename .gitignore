@@ -8,6 +8,7 @@ build/
 GelirHazirlama-*.spec
 .env
 .DS_Store
+ana_proje_eslemeleri.json
 
 # Yerel / gürültü
 assets/*
